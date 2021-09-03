@@ -1,6 +1,3 @@
 <launch>
-    <node   name="provider_underwater_com" 
-            pkg="provider_underwater_com"
-            type="provider_underwater_com_node"
-            output="screen" /> 
+    <node name="provider_underwater_com" pkg="provider_underwater_com" type="provider_underwater_com_node" output="screen" /> 
 </launch>

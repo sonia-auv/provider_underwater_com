@@ -25,8 +25,6 @@
 
 #include "provider_underwater_com_node.h"
 
-#include "Configuration.h"
-
 namespace provider_underwater_com 
 {
 

@@ -27,7 +27,7 @@
 #define PROVIDER_UNDERWATER_COM_NODE
 
 #include <ros/ros.h>
-
+#include "Configuration.h"
 
 namespace provider_underwater_com {
 
@@ -45,7 +45,7 @@ class ProviderUnderwaterComNode
     Configuration configuration;
 
     ros::NodeHandlePtr nh;
-}
+};
 
 }
 

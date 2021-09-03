@@ -30,7 +30,7 @@ namespace provider_underwater_com
 
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
-        : nh(_nh), configuration(_nh)
+        : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort())
     {
 
     }

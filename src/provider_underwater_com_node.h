@@ -28,6 +28,7 @@
 
 #include <ros/ros.h>
 #include "Configuration.h"
+#include "drivers/serial.h"
 
 namespace provider_underwater_com {
 
@@ -43,7 +44,7 @@ class ProviderUnderwaterComNode
     private:
 
     Configuration configuration;
-
+    Serial serialConnection;
     ros::NodeHandlePtr nh;
 };
 

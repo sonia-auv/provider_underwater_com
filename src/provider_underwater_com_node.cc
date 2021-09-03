@@ -32,7 +32,7 @@ namespace provider_underwater_com
 
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
-        : nh(_nh), Configuration(_nh)
+        : nh(_nh), configuration(_nh)
     {
 
     }

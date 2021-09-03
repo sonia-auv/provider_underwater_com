@@ -42,7 +42,9 @@ class ProviderUnderwaterComNode
     
     private:
 
+    Configuration configuration;
 
+    ros::NodeHandlePtr nh;
 }
 
 }

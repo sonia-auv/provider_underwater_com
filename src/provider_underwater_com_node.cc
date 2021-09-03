@@ -30,7 +30,7 @@ namespace provider_underwater_com
 
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
-        : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
+        : nh_(_nh) //, configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
 
     }
@@ -41,6 +41,13 @@ namespace provider_underwater_com
     //Node Spin
     void ProviderUnderwaterComNode::Spin()
     {
-        
+        ros::Rate r(1);
+
+        while(ros::ok())
+        {
+            ROS_INFO_STREAM("Node is working");
+            ros::spinOnce();
+            r.sleep();
+        }
     }
 }

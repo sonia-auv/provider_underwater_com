@@ -21,14 +21,14 @@
   <build_depend>message_generation</build_depend>
   <build_depend>sonia_common</build_depend>
 
-  <run_depend>roscpp</run_depend>
-  <run_depend>log4cxx</run_depend>
-  <run_depend>self_test</run_depend>
-  <run_depend>diagnostic_updater</run_depend>
-  <run_depend>tf</run_depend>
-  <run_depend>std_msgs</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>message_runtime</run_depend>
-  <run_depend>sonia_common</run_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>log4cxx</exec_depend>
+  <exec_depend>self_test</exec_depend>
+  <exec_depend>diagnostic_updater</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>sonia_common</exec_depend>
 
 </package>

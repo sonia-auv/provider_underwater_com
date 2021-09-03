@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>provider_underwate_com</name>
+  <name>provider_underwater_com</name>
   <version>0.0.0</version>
-  <description>The provider_underwate_com package</description>
+  <description>The provider_underwater_com package</description>
 
   <author>Francis Alonzo</author>
   

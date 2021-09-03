@@ -43,9 +43,9 @@ class ProviderUnderwaterComNode
     
     private:
 
-    Configuration configuration;
-    Serial serialConnection;
-    ros::NodeHandlePtr nh;
+    Configuration configuration_;
+    Serial serialConnection_;
+    ros::NodeHandlePtr nh_;
 };
 
 }

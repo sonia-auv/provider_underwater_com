@@ -27,6 +27,9 @@
 #define PROVIDER_UNDERWATER_COM_NODE
 
 #include <ros/ros.h>
+#include <string>
+#include <std_msgs/UInt8.h>
+
 #include "Configuration.h"
 #include "drivers/serial.h"
 
@@ -43,10 +46,23 @@ class ProviderUnderwaterComNode
     
     private:
 
+        void UnderwaterComCallback(const std_msgs::UInt8 & msg);
+
     ros::NodeHandlePtr nh_;
     //Configuration configuration_;
     //Serial serialConnection_;
     
+    ros::Subscriber underwaterComSubscriber_;
+    ros::Publisher underwaterComPublisher_;
+
+    std::string str_get_version = "wcv";
+    std::string str_get_payload_size = "wcn";
+    std::string str_get_modem_config = "wcc";
+    std::string str_set_modem_config = "wcs";
+    std::string str_get_transmit_queue_length = "wcl";
+    std::string str_flush_transmit_queue = "wcf";
+    std::string str_get_diagnostic = "wcd";
+    std::string str_queue_for_transmit = "wcq";
 };
 
 }

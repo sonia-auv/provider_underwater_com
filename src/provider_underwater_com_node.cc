@@ -30,9 +30,10 @@ namespace provider_underwater_com
 
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
-        : nh_(_nh) //, configuration_(_nh), serialConnection_(configuration_.getTtyPort())
+        : nh_(_nh)//, configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
-
+        underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
+        underwaterComPublisher_ = nh_->advertise<std_msgs::UInt8>("/provider_underwater_com/receive_msgs", 100);
     }
 
     //Node Destructor
@@ -45,9 +46,13 @@ namespace provider_underwater_com
 
         while(ros::ok())
         {
-            ROS_INFO_STREAM("Node is working");
             ros::spinOnce();
             r.sleep();
         }
+    }
+
+    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt8 & msg)
+    {
+        
     }
 }

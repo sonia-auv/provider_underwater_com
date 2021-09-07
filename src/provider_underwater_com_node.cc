@@ -99,7 +99,7 @@ namespace provider_underwater_com
         std::stringstream ss;
         std::string sentence;
 
-        if(cmd != CMD_QUEUE_PACKET || cmd != CMD_SET_SETTINGS)
+        if(cmd != CMD_QUEUE_PACKET && cmd != CMD_SET_SETTINGS)
         {
             ss << SOP << direction << cmd;
         }

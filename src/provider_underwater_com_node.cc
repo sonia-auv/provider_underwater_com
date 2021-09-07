@@ -51,8 +51,51 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt8 & msg)
+    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt8 &msg)
     {
+        std::string packet = std::to_string(msg.data);
+        std::string dir = DIR_CMD;
+        std::string cmd = CMD_QUEUE_PACKET;
+
+        Queue_Packet(dir, cmd, packet);
+    }
+
+    uint8_t ProviderUnderwaterComNode::CalculateChecksum(const std::string sentence)
+    {
+        uint8_t check = 0;
+
+        for(unsigned int i = 1; i < sentence.size(); i++)
+            check ^= sentence[i];
         
+        return check;
+    }
+
+    void ProviderUnderwaterComNode::AppendChecksum(std::string &sentence)
+    {
+        std::stringstream ss;
+        uint8_t checksum = CalculateChecksum(sentence);
+        ss << sentence << std::string("*") << std::hex << checksum;
+        sentence = ss.str();
+    }
+
+    bool ProviderUnderwaterComNode::ConfirmChecksum(const std::string &sentence)
+    {
+        try
+        {
+            std::string checksumData = sentence.substr(0, sentence.find("*", 0));
+            uint8_t calculatedChecksum = CalculateChecksum(checksumData);
+            uint8_t originalChecksum = std::stoi(sentence.substr(sentence.find("*", 0)+1, 2), nullptr, 16);
+            return originalChecksum == calculatedChecksum;
+        }
+        catch(...)
+        {
+            ROS_INFO_STREAM("Underwater Com: bad packet checksum");
+            return false;
+        }
+    }
+
+    void ProviderUnderwaterComNode::Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet)
+    {
+
     }
 }

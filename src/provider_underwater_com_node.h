@@ -29,9 +29,12 @@
 #include <ros/ros.h>
 #include <string>
 #include <std_msgs/UInt8.h>
+#include <fstream>
+#include <sstream>
 
 #include "Configuration.h"
 #include "drivers/serial.h"
+#include "ModemM64_definitions.h"
 
 namespace provider_underwater_com {
 
@@ -46,23 +49,23 @@ class ProviderUnderwaterComNode
     
     private:
 
-        void UnderwaterComCallback(const std_msgs::UInt8 & msg);
+        void UnderwaterComCallback(const std_msgs::UInt8 &msg);
 
-    ros::NodeHandlePtr nh_;
-    //Configuration configuration_;
-    //Serial serialConnection_;
+        uint8_t CalculateChecksum(const std::string sentence);
+        void AppendChecksum(std::string &sentence);
+        bool ConfirmChecksum(const std::string &sentence);
+
+        void Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet);
+
+
+        ros::NodeHandlePtr nh_;
+        //Configuration configuration_;
+        //Serial serialConnection_;
+        
+        ros::Subscriber underwaterComSubscriber_;
+        ros::Publisher underwaterComPublisher_;
+
     
-    ros::Subscriber underwaterComSubscriber_;
-    ros::Publisher underwaterComPublisher_;
-
-    std::string str_get_version = "wcv";
-    std::string str_get_payload_size = "wcn";
-    std::string str_get_modem_config = "wcc";
-    std::string str_set_modem_config = "wcs";
-    std::string str_get_transmit_queue_length = "wcl";
-    std::string str_flush_transmit_queue = "wcf";
-    std::string str_get_diagnostic = "wcd";
-    std::string str_queue_for_transmit = "wcq";
 };
 
 }

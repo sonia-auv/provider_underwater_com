@@ -96,6 +96,22 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet)
     {
+        std::stringstream ss;
+        std::string sentence;
+
+        if(cmd != CMD_QUEUE_PACKET || cmd != CMD_SET_SETTINGS)
+        {
+            ss << SOP << direction << cmd;
+        }
+        else
+        {
+            ss << SOP << direction << cmd << std::string(",") << packet;
+        }
+
+        sentence = ss.str();
+        AppendChecksum(sentence);
+
+        
 
     }
 }

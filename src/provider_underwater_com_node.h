@@ -59,8 +59,8 @@ class ProviderUnderwaterComNode
 
 
         ros::NodeHandlePtr nh_;
-        //Configuration configuration_;
-        //Serial serialConnection_;
+        Configuration configuration_;
+        Serial serialConnection_;
         
         ros::Subscriber underwaterComSubscriber_;
         ros::Publisher underwaterComPublisher_;

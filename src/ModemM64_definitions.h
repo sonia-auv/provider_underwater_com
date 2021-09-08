@@ -26,20 +26,20 @@
 #ifndef MODEMM64_DEFINITIONS
 #define MODEMM64_DEFINITIONS
 
-#define SOP "w"
-#define EOP "\n"
-#define DIR_CMD "c"
-#define DIR_RESP "r"
-#define CHECKSUM "*"
+#define SOP 'w'
+#define EOP '\n'
+#define DIR_CMD 'c'
+#define DIR_RESP 'r'
+#define CHECKSUM '*'
 
-#define CMD_GET_VERSION "v"
-#define CMD_GET_PAYLOAD_SIZE "n"
-#define CMD_GET_BUFFER_LENGTH "l"
-#define CMD_GET_DIAGNOSTIC "d"
-#define CMD_GET_SETTINGS "c"
-#define CMD_SET_SETTINGS "s"
-#define CMD_QUEUE_PACKET "q"
-#define CMD_FLUSH "f"
-#define RESP_GOT_PACKET "p"
+#define CMD_GET_VERSION 'v'
+#define CMD_GET_PAYLOAD_SIZE 'n'
+#define CMD_GET_BUFFER_LENGTH 'l'
+#define CMD_GET_DIAGNOSTIC 'd'
+#define CMD_GET_SETTINGS 'c'
+#define CMD_SET_SETTINGS 's'
+#define CMD_QUEUE_PACKET 'q'
+#define CMD_FLUSH 'f'
+#define RESP_GOT_PACKET 'p'
 
 #endif // MODEMM64_DEFINITIONS

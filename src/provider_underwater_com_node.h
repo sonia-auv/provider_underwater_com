@@ -31,6 +31,9 @@
 #include <std_msgs/UInt8.h>
 #include <fstream>
 #include <sstream>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 
 #include "Configuration.h"
 #include "drivers/serial.h"
@@ -56,6 +59,7 @@ class ProviderUnderwaterComNode
         bool ConfirmChecksum(const std::string &sentence);
 
         void Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet);
+        void Read_Packet();
 
 
         ros::NodeHandlePtr nh_;
@@ -65,7 +69,7 @@ class ProviderUnderwaterComNode
         ros::Subscriber underwaterComSubscriber_;
         ros::Publisher underwaterComPublisher_;
 
-    
+        std::thread reader_thread;
 };
 
 }

@@ -25,6 +25,8 @@
 
 #include "provider_underwater_com_node.h"
 
+#define BUFFER_SIZE 256
+
 namespace provider_underwater_com 
 {
 
@@ -32,12 +34,20 @@ namespace provider_underwater_com
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
+        serialConnection_.flush();
+
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::UInt8>("/provider_underwater_com/receive_msgs", 100);
+
+        reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
     }
 
     //Node Destructor
-    ProviderUnderwaterComNode::~ProviderUnderwaterComNode(){}
+    ProviderUnderwaterComNode::~ProviderUnderwaterComNode()
+    {
+        underwaterComSubscriber_.shutdown();
+        reader_thread.~thread();
+    }
 
     //Node Spin
     void ProviderUnderwaterComNode::Spin()
@@ -53,9 +63,9 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt8 &msg)
     {
-        std::string packet = std::to_string(msg.data);
-        std::string dir = DIR_CMD;
-        std::string cmd = CMD_QUEUE_PACKET;
+        std::string packet = ",8," + std::to_string(msg.data); // Payload for the CMD to send, always 8
+        std::string dir = std::to_string(DIR_CMD);
+        std::string cmd = std::to_string(CMD_QUEUE_PACKET);
 
         Queue_Packet(dir, cmd, packet);
     }
@@ -64,7 +74,7 @@ namespace provider_underwater_com
     {
         uint8_t check = 0;
 
-        for(unsigned int i = 1; i < sentence.size(); i++)
+        for(unsigned int i = 0; i < sentence.size(); i++)
             check ^= sentence[i];
         
         return check;
@@ -74,7 +84,7 @@ namespace provider_underwater_com
     {
         std::stringstream ss;
         uint8_t checksum = CalculateChecksum(sentence);
-        ss << sentence << std::string("*") << std::hex << checksum;
+        ss << sentence << std::to_string(CHECKSUM) << std::hex << checksum;
         sentence = ss.str();
     }
 
@@ -89,7 +99,7 @@ namespace provider_underwater_com
         }
         catch(...)
         {
-            ROS_INFO_STREAM("Underwater Com: bad packet checksum");
+            ROS_INFO_STREAM("Underwater Com: bad checksum");
             return false;
         }
     }
@@ -99,19 +109,35 @@ namespace provider_underwater_com
         std::stringstream ss;
         std::string sentence;
 
-        if(cmd != CMD_QUEUE_PACKET && cmd != CMD_SET_SETTINGS)
+        if(cmd != std::to_string(CMD_QUEUE_PACKET) && cmd != std::to_string(CMD_SET_SETTINGS))
         {
-            ss << SOP << direction << cmd;
+            ss << SOP << direction << cmd << EOP;
         }
         else
         {
-            ss << SOP << direction << cmd << std::string(",") << packet;
+            ss << SOP << direction << cmd << std::string(",") << packet << EOP;
         }
 
         sentence = ss.str();
-        AppendChecksum(sentence);
+        //AppendChecksum(sentence);
+        serialConnection_.transmit(sentence);
 
-        
+        ROS_DEBUG("Packet sent to Modem");
+   }
 
-    }
+   void ProviderUnderwaterComNode::Read_Packet()
+   {
+       ROS_INFO_STREAM("Reader thread started");
+       char buffer[BUFFER_SIZE];
+
+        while(!ros::isShuttingDown())
+        {
+            do
+            {
+                serialConnection_.readOnce(buffer, 0);
+            } while (buffer[0] != SOP);
+            
+        }
+
+   }
 }

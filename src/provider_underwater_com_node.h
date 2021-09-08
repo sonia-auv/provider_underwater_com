@@ -58,8 +58,10 @@ class ProviderUnderwaterComNode
         void AppendChecksum(std::string &sentence);
         bool ConfirmChecksum(const std::string &sentence);
 
-        void Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet);
+        void Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet = "");
         void Read_Packet();
+        bool Set_Sensor(const char &role = ROLE_MASTER, uint8_t channel = 4);
+        void Verify_Version();
 
 
         ros::NodeHandlePtr nh_;
@@ -70,6 +72,10 @@ class ProviderUnderwaterComNode
         ros::Publisher underwaterComPublisher_;
 
         std::thread reader_thread;
+        std::mutex reponse_mutex;
+        std::condition_variable repsonse_cond;
+        std::string response_str = "";
+        
 };
 
 }

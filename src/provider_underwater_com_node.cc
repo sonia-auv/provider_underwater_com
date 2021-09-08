@@ -40,6 +40,8 @@ namespace provider_underwater_com
         underwaterComPublisher_ = nh_->advertise<std_msgs::UInt8>("/provider_underwater_com/receive_msgs", 100);
 
         reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
+
+        Set_Sensor(ROLE_MASTER, 4);
     }
 
     //Node Destructor
@@ -123,21 +125,51 @@ namespace provider_underwater_com
         serialConnection_.transmit(sentence);
 
         ROS_DEBUG("Packet sent to Modem");
-   }
+    }
 
-   void ProviderUnderwaterComNode::Read_Packet()
-   {
-       ROS_INFO_STREAM("Reader thread started");
-       char buffer[BUFFER_SIZE];
+    void ProviderUnderwaterComNode::Read_Packet()
+    {
+        ROS_INFO_STREAM("Reader thread started");
+        char buffer[BUFFER_SIZE];
 
-        while(!ros::isShuttingDown())
-        {
-            do
+            while(!ros::isShuttingDown())
             {
-                serialConnection_.readOnce(buffer, 0);
-            } while (buffer[0] != SOP);
-            
-        }
+                do 
+                {
+                    serialConnection_.readOnce(buffer, 0);
+                } 
+                while (buffer[0] != SOP);
+                
+                uint8_t i;
 
-   }
+                for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)
+                {
+                    serialConnection_. readOnce(buffer, i);
+                }
+
+                if(i >= BUFFER_SIZE)
+                {
+                    continue;
+                }
+
+                buffer[i] = 0;
+
+                if(buffer[1] != DIR_RESP)
+                {
+                    ROS_INFO_STREAM("Error on the response");
+                }
+
+                ROS_INFO_STREAM(std::string(buffer));
+            }
+    }
+
+    bool ProviderUnderwaterComNode::Set_Sensor(const char &role, uint8_t channel)
+    {
+        Verify_Version();
+    }
+
+    void ProviderUnderwaterComNode::Verify_Version()
+    {
+        Queue_Packet(std::to_string(DIR_CMD),std::to_string(CMD_GET_VERSION));
+    }
 }

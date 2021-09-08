@@ -42,4 +42,7 @@
 #define CMD_FLUSH 'f'
 #define RESP_GOT_PACKET 'p'
 
+#define ROLE_MASTER 'a'
+#define ROLE_SLAVE 'b'
+
 #endif // MODEMM64_DEFINITIONS

@@ -66,8 +66,8 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt8 &msg)
     {
         std::string packet = ",8," + std::to_string(msg.data); // Payload for the CMD to send, always 8
-        std::string dir = std::to_string(DIR_CMD);
-        std::string cmd = std::to_string(CMD_QUEUE_PACKET);
+        std::string dir = std::string(1, DIR_CMD);
+        std::string cmd = std::string(1, CMD_QUEUE_PACKET);
 
         Queue_Packet(dir, cmd, packet);
     }
@@ -86,7 +86,7 @@ namespace provider_underwater_com
     {
         std::stringstream ss;
         uint8_t checksum = CalculateChecksum(sentence);
-        ss << sentence << std::to_string(CHECKSUM) << std::hex << checksum;
+        ss << sentence << std::string(1, CHECKSUM) << std::hex << checksum;
         sentence = ss.str();
     }
 
@@ -111,7 +111,7 @@ namespace provider_underwater_com
         std::stringstream ss;
         std::string sentence;
 
-        if(cmd != std::to_string(CMD_QUEUE_PACKET) && cmd != std::to_string(CMD_SET_SETTINGS))
+        if(cmd != std::string(1, CMD_QUEUE_PACKET) && cmd != std::string(1, CMD_SET_SETTINGS))
         {
             ss << SOP << direction << cmd << EOP;
         }
@@ -121,8 +121,6 @@ namespace provider_underwater_com
         }
 
         sentence = ss.str();
-        ROS_INFO_STREAM(sentence);
-
         serialConnection_.transmit(sentence);
 
         ROS_DEBUG("Packet sent to Modem");
@@ -160,18 +158,45 @@ namespace provider_underwater_com
                     ROS_INFO_STREAM("Error on the response");
                 }
 
-                ROS_INFO_STREAM(std::string(buffer));
+                if(buffer[2] != CMD_FLUSH)
+                {
+                    std::unique_lock<std::mutex> mlock(response_mutex);
+                    response_str = std::string(buffer);
+                    response_cond.notify_one();
+                }
             }
     }
 
-    bool ProviderUnderwaterComNode::Set_Sensor(const char &role, uint8_t channel)
+    void ProviderUnderwaterComNode::Set_Sensor(const char &role, uint8_t channel)
     {
-        Verify_Version();
-        return true;
+                
+        if(Verify_Version())
+        {
+            ROS_INFO_STREAM("Major version isn't of 1");
+            ros::shutdown();
+        }       
     }
 
-    void ProviderUnderwaterComNode::Verify_Version()
+    bool ProviderUnderwaterComNode::Verify_Version()
     {
-        Queue_Packet(std::to_string(DIR_CMD),std::to_string(CMD_GET_VERSION));
+        std::string major_version = "";
+        
+        Queue_Packet(std::string(1, DIR_CMD),std::string(1, CMD_GET_VERSION));
+
+        std::unique_lock<std::mutex> mlock(response_mutex);
+        response_cond.wait(mlock);
+
+        std::stringstream ss(response_str);
+        std::getline(ss, major_version, ',');
+
+        if(std::stoi(major_version) == 1 && ConfirmChecksum(response_str))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+        
     }
 }

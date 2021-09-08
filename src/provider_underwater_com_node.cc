@@ -72,18 +72,18 @@ namespace provider_underwater_com
         Queue_Packet(dir, cmd, packet);
     }
 
-    uint8_t ProviderUnderwaterComNode::CalculateChecksum(const uint8_t *sentence, uint8_t length)
+    uint8_t ProviderUnderwaterComNode::CalculateChecksum(uint8_t *sentence, uint8_t length)
     {
-        uint8_t check = 0;
+        uint16_t check = 0;
+        uint16_t i ;
 
-        while(length > 0)
+        while(length--)
         {
-            check = lookup_table[*sentence ^ check];
-            sentence++;
-            length--;            
+            i = (check ^ *sentence++) & 0xFF;
+            check = (crc_table[i] ^ (check << 8)) & 0xFF;
         }
         
-        return check;
+        return check & 0xFF;
     }
 
     void ProviderUnderwaterComNode::AppendChecksum(std::string &sentence)
@@ -177,7 +177,6 @@ namespace provider_underwater_com
         if(!Verify_Version())
         {
             ROS_INFO_STREAM("Major version isn't of 1");
-            ros::shutdown();
         }       
     }
 

@@ -54,7 +54,7 @@ class ProviderUnderwaterComNode
 
         void UnderwaterComCallback(const std_msgs::UInt8 &msg);
 
-        uint8_t CalculateChecksum(const uint8_t *sentence, uint8_t length);
+        uint8_t CalculateChecksum(uint8_t *sentence, uint8_t length);
         void AppendChecksum(std::string &sentence);
         bool ConfirmChecksum(const std::string &sentence);
 

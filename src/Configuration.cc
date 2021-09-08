@@ -30,7 +30,7 @@ namespace provider_underwater_com
 
     Configuration::Configuration(const ros::NodeHandlePtr &nh)
         : nh(nh),
-          ttyPort("/dev/MODEM"),
+          ttyPort("/dev/ttyUSB0"), // "/dev/MODEM" for AUVs, debug only
           settingsFile("settings.txt")
     {
         Deserialize();

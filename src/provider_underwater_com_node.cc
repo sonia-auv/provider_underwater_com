@@ -122,7 +122,7 @@ namespace provider_underwater_com
 
         sentence = ss.str();
         ROS_INFO_STREAM(sentence);
-        
+
         serialConnection_.transmit(sentence);
 
         ROS_DEBUG("Packet sent to Modem");
@@ -167,6 +167,7 @@ namespace provider_underwater_com
     bool ProviderUnderwaterComNode::Set_Sensor(const char &role, uint8_t channel)
     {
         Verify_Version();
+        return true;
     }
 
     void ProviderUnderwaterComNode::Verify_Version()

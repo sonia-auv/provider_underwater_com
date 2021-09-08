@@ -121,7 +121,8 @@ namespace provider_underwater_com
         }
 
         sentence = ss.str();
-        //AppendChecksum(sentence);
+        ROS_INFO_STREAM(sentence);
+        
         serialConnection_.transmit(sentence);
 
         ROS_DEBUG("Packet sent to Modem");

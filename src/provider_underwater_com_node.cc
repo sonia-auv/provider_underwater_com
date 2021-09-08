@@ -76,9 +76,11 @@ namespace provider_underwater_com
     {
         uint8_t check = 0;
 
-        for(unsigned int i = 0; i < length; i++)
+        while(length > 0)
         {
-
+            check = lookup_table[*sentence ^ check];
+            sentence++;
+            length--;            
         }
         
         return check;
@@ -97,7 +99,7 @@ namespace provider_underwater_com
         try
         {
             std::string checksumData = sentence.substr(0, sentence.find("*", 0));
-            uint8_t calculatedChecksum = CalculateChecksum(checksumData);
+            uint8_t calculatedChecksum = CalculateChecksum((uint8_t *)&checksumData, checksumData.size());
             uint8_t originalChecksum = std::stoi(sentence.substr(sentence.find("*", 0)+1, 2), nullptr, 16);
             return originalChecksum == calculatedChecksum;
         }

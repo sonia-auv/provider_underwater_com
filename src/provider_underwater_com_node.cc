@@ -72,12 +72,14 @@ namespace provider_underwater_com
         Queue_Packet(dir, cmd, packet);
     }
 
-    uint8_t ProviderUnderwaterComNode::CalculateChecksum(const std::string sentence)
+    uint8_t ProviderUnderwaterComNode::CalculateChecksum(const uint8_t *sentence, uint8_t length)
     {
         uint8_t check = 0;
 
-        for(unsigned int i = 0; i < sentence.size(); i++)
-            check ^= sentence[i];
+        for(unsigned int i = 0; i < length; i++)
+        {
+
+        }
         
         return check;
     }
@@ -85,7 +87,7 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::AppendChecksum(std::string &sentence)
     {
         std::stringstream ss;
-        uint8_t checksum = CalculateChecksum(sentence);
+        uint8_t checksum = CalculateChecksum((uint8_t *)&sentence, sentence.size());
         ss << sentence << std::string(1, CHECKSUM) << std::hex << checksum;
         sentence = ss.str();
     }
@@ -170,7 +172,7 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Set_Sensor(const char &role, uint8_t channel)
     {
                 
-        if(Verify_Version())
+        if(!Verify_Version())
         {
             ROS_INFO_STREAM("Major version isn't of 1");
             ros::shutdown();
@@ -187,6 +189,7 @@ namespace provider_underwater_com
         response_cond.wait(mlock);
 
         std::stringstream ss(response_str);
+        std::getline(ss, major_version, ',');
         std::getline(ss, major_version, ',');
 
         if(std::stoi(major_version) == 1 && ConfirmChecksum(response_str))

@@ -72,34 +72,32 @@ namespace provider_underwater_com
         Queue_Packet(dir, cmd, packet);
     }
 
-    uint8_t ProviderUnderwaterComNode::CalculateChecksum(uint8_t *sentence, uint8_t length)
+    uint8_t ProviderUnderwaterComNode::CalculateChecksum(const std::string &sentence, uint8_t length)
     {
-        uint16_t check = 0;
-        uint16_t i ;
+        uint8_t check = 0;
 
-        while(length--)
+        for(uint8_t i = 0; i < length; ++i)
         {
-            i = (check ^ *sentence++) & 0xFF;
-            check = (crc_table[i] ^ (check << 8)) & 0xFF;
+            check = crc_table[(uint8_t)sentence.at(i) ^ check];
         }
         
-        return check & 0xFF;
+        return check;
     }
 
     void ProviderUnderwaterComNode::AppendChecksum(std::string &sentence)
     {
         std::stringstream ss;
-        uint8_t checksum = CalculateChecksum((uint8_t *)&sentence, sentence.size());
+        uint8_t checksum = CalculateChecksum(sentence, sentence.size());
         ss << sentence << std::string(1, CHECKSUM) << std::hex << checksum;
         sentence = ss.str();
     }
 
     bool ProviderUnderwaterComNode::ConfirmChecksum(const std::string &sentence)
-    {
+    {      
         try
         {
             std::string checksumData = sentence.substr(0, sentence.find("*", 0));
-            uint8_t calculatedChecksum = CalculateChecksum((uint8_t *)&checksumData, checksumData.size());
+            uint8_t calculatedChecksum = CalculateChecksum(checksumData, checksumData.size());
             uint8_t originalChecksum = std::stoi(sentence.substr(sentence.find("*", 0)+1, 2), nullptr, 16);
             return originalChecksum == calculatedChecksum;
         }
@@ -176,7 +174,7 @@ namespace provider_underwater_com
                 
         if(!Verify_Version())
         {
-            ROS_INFO_STREAM("Major version isn't of 1");
+            ROS_WARN_STREAM("Major version isn't of 1");
         }       
     }
 

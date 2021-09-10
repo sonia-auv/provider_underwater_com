@@ -28,7 +28,7 @@
 
 #include <ros/ros.h>
 #include <string>
-#include <std_msgs/UInt8.h>
+#include <std_msgs/String.h>
 #include <fstream>
 #include <sstream>
 #include <mutex>
@@ -52,17 +52,19 @@ class ProviderUnderwaterComNode
     
     private:
 
-        void UnderwaterComCallback(const std_msgs::UInt8 &msg);
+        void UnderwaterComCallback(const std_msgs::String &msg);
 
         uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
         void AppendChecksum(std::string &sentence);
         bool ConfirmChecksum(const std::string &sentence);
 
-        void Queue_Packet(const std::string &direction, const std::string &cmd, const std::string &packet = "");
+        void Queue_Packet(const std::string &cmd, const std::string &packet = "");
         void Read_Packet();
+        void Export_To_ROS();
         void Set_Sensor(const char &role = ROLE_MASTER, uint8_t channel = 4);
-        bool Verify_Version();
-
+        void Verify_Version();
+        void Get_Payload_Load();
+        void Set_Configuration(const char &role, uint8_t channel);
 
         ros::NodeHandlePtr nh_;
         Configuration configuration_;
@@ -76,8 +78,14 @@ class ProviderUnderwaterComNode
         std::condition_variable response_cond;
         std::string response_str = "";
 
+        std::thread export_to_ros_thread;
+        std::mutex export_to_ros_mutex;
+        std::condition_variable export_to_ros_cond;
+        std::string export_to_ros_str = "";
+
         uint8_t payload_;
-        
+        bool init_error_ = false;
+        std_msgs::String msg_received;
 };
 
 }

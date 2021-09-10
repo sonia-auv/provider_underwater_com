@@ -41,6 +41,10 @@
 #define CMD_QUEUE_PACKET 'q'
 #define CMD_FLUSH 'f'
 #define RESP_GOT_PACKET 'p'
+#define RETURN_ERROR '?'
+
+#define ACK 'a'
+#define NAK 'n'
 
 #define ROLE_MASTER 'a'
 #define ROLE_SLAVE 'b'

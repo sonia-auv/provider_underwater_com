@@ -62,7 +62,7 @@ class ProviderUnderwaterComNode
         bool Check_CMD(const std::string &cmd);
         void Read_Packet();
         void Export_To_ROS();
-        void Set_Sensor(const char &role = ROLE_MASTER, uint8_t channel = 4);
+        void Set_Sensor(std::string &role, uint8_t channel = 4);
         void Verify_Version();
         void Get_Payload_Load();
         void Set_Configuration(const char &role, uint8_t channel);
@@ -74,6 +74,7 @@ class ProviderUnderwaterComNode
         
         ros::Subscriber underwaterComSubscriber_;
         ros::Publisher underwaterComPublisher_;
+        std_msgs::String msg_received;
 
         std::thread reader_thread;
         std::mutex response_mutex;
@@ -89,8 +90,6 @@ class ProviderUnderwaterComNode
         uint8_t channel_;
         
         uint8_t payload_;
-        bool init_error_ = false;
-        std_msgs::String msg_received;
 };
 
 }

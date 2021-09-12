@@ -42,7 +42,8 @@ namespace provider_underwater_com
         reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
         export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
 
-        Set_Sensor(ROLE_MASTER, 4);
+        std::string role_sensor = configuration_.getRole();
+        Set_Sensor(role_sensor, std::stoi(configuration_.getChannel()));
     }
 
     //Node Destructor
@@ -181,11 +182,11 @@ namespace provider_underwater_com
 
                 buffer[i] = 0;
 
-                if(buffer[1] != DIR_RESP || buffer[2] == RETURN_ERROR)
+                /*if(buffer[1] != DIR_RESP || buffer[2] == RETURN_ERROR)
                 {
-                    ROS_INFO_STREAM("Error on the response");
-                }
-                else if((buffer[2] == RESP_GOT_PACKET || buffer[2] == CMD_GET_SETTINGS || buffer[2] == CMD_GET_BUFFER_LENGTH
+                    ROS_INFO_STREAM("Error on the response. Resend message or check sensor.");
+                }*/
+                if((buffer[2] == RESP_GOT_PACKET || buffer[2] == CMD_GET_SETTINGS || buffer[2] == CMD_GET_BUFFER_LENGTH
                         || buffer[2] == CMD_GET_DIAGNOSTIC) && ConfirmChecksum(buffer))
                 {
                     std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
@@ -213,7 +214,7 @@ namespace provider_underwater_com
             export_to_ros_cond.wait(mlock);
 
             std::stringstream ss(export_to_ros_str);
-            std::getline(ss, size, ','); // TODO add a size check before publish
+            std::getline(ss, size, ','); // TODO add a size check before publish and check if message good
             std::getline(ss, size, ',');
             std::getline(ss, msg, '*');
 
@@ -223,11 +224,24 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Set_Sensor(const char &role, uint8_t channel)
+    void ProviderUnderwaterComNode::Set_Sensor(std::string &role, uint8_t channel)
     {
+        char role_[2];
+
+        ROS_ASSERT_MSG(role == "master" || role == "slave", "Set the role as 'master' or 'slave'. Error in config");
+
+        if(role == "master")
+        {
+            role_[0] = ROLE_MASTER;
+        }
+        else
+        {
+            role_[0] = ROLE_SLAVE;
+        }
+
         Verify_Version();   
         Get_Payload_Load();
-        Set_Configuration(role, channel);
+        Set_Configuration(role_[0], channel);
         Flush_Queue();
     }
 
@@ -244,16 +258,7 @@ namespace provider_underwater_com
         std::getline(ss, major_version, ',');
         std::getline(ss, major_version, ',');
 
-        if(std::stoi(major_version) == 1)
-        {
-            ROS_DEBUG("Major version is 1");
-        }
-        else
-        {
-            ROS_INFO_STREAM("Major version isn't 1");
-            init_error_ = true;
-        }
-        
+        ROS_ASSERT_MSG(std::stoi(major_version) == 1, "Major Version isn't 1. Error with the sensor");
     }
 
     void ProviderUnderwaterComNode::Get_Payload_Load()
@@ -291,14 +296,7 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
-        {
-            ROS_WARN_STREAM("Could not set the configuration");
-        }
-        else
-        {
-            ROS_DEBUG("Configuration set");
-        }
+        ROS_ASSERT_MSG(acknowledge == std::string(1, ACK), "Could not set the configuration. Error in settings");
     }
 
     void ProviderUnderwaterComNode::Flush_Queue()
@@ -314,13 +312,6 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
-        {
-            ROS_WARN_STREAM("Could not flush the queue");
-        }
-        else
-        {
-            ROS_DEBUG("Queue flushed");
-        }
+        ROS_ASSERT_MSG(acknowledge == std::string(1, ACK), "Couldn't flush the queue. Error with the sensor");
     }
 }

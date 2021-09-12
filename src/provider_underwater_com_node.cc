@@ -38,6 +38,7 @@ namespace provider_underwater_com
 
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
+        underwaterComService_ = nh_->advertiseService("/provider_undewater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
 
         reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
         export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
@@ -73,6 +74,28 @@ namespace provider_underwater_com
         std::string cmd = std::string(1, CMD_QUEUE_PACKET);
 
         Queue_Packet(cmd, packet);
+    }
+
+    bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
+    {   
+        Queue_Packet(std::string(1, req.cmd));
+
+        std::unique_lock<std::mutex> mlock(response_mutex);
+        response_cond.wait(mlock);
+
+        const char *buffer = response_str.c_str();
+
+        switch (buffer[3])
+        {
+        case CMD_GET_BUFFER_LENGTH:
+            ROS_INFO_STREAM("This thing worked wow");
+            break;
+        
+        default:
+            break;
+        }
+
+        return true;
     }
 
     uint8_t ProviderUnderwaterComNode::CalculateChecksum(const std::string &sentence, uint8_t length)
@@ -186,8 +209,7 @@ namespace provider_underwater_com
                 {
                     ROS_INFO_STREAM("Error on the response. Resend message or check sensor.");
                 }*/
-                if((buffer[2] == RESP_GOT_PACKET || buffer[2] == CMD_GET_SETTINGS || buffer[2] == CMD_GET_BUFFER_LENGTH
-                        || buffer[2] == CMD_GET_DIAGNOSTIC) && ConfirmChecksum(buffer))
+                if(buffer[2] == RESP_GOT_PACKET && ConfirmChecksum(buffer))
                 {
                     std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
                     export_to_ros_str = std::string(buffer);

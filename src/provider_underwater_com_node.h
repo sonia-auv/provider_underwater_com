@@ -38,6 +38,7 @@
 #include "Configuration.h"
 #include "drivers/serial.h"
 #include <sonia_common/ModemM64_definitions.h>
+#include <sonia_common/ModemPacket.h>
 
 namespace provider_underwater_com {
 
@@ -53,6 +54,7 @@ class ProviderUnderwaterComNode
     private:
 
         void UnderwaterComCallback(const std_msgs::String &msg);
+        bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
         uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
         void AppendChecksum(std::string &sentence);
@@ -74,6 +76,7 @@ class ProviderUnderwaterComNode
         
         ros::Subscriber underwaterComSubscriber_;
         ros::Publisher underwaterComPublisher_;
+        ros::ServiceServer underwaterComService_;
         std_msgs::String msg_received;
 
         std::thread reader_thread;
@@ -87,8 +90,7 @@ class ProviderUnderwaterComNode
         std::string export_to_ros_str = "";
 
         char* role;
-        uint8_t channel_;
-        
+        uint8_t channel_;        
         uint8_t payload_;
 };
 

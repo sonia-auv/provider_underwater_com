@@ -41,6 +41,8 @@ namespace provider_underwater_com
 
         std::string getTtyPort() const {return ttyPort;}
         std::string getSettingsFile() const {return settingsFile;}
+        std::string getRole() const {return role;}
+        std::string getChannel() const {return channel;}
 
     private:
 
@@ -48,6 +50,8 @@ namespace provider_underwater_com
 
         std::string ttyPort;
         std::string settingsFile;
+        std::string role;
+        std::string channel;
 
         void Deserialize();
         void SetParameter();

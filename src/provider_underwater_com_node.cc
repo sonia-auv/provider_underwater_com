@@ -119,18 +119,39 @@ namespace provider_underwater_com
         std::stringstream ss;
         std::string sentence;
 
-        ss << SOP << DIR_CMD << cmd;
-
-        if(cmd == std::string(1, CMD_QUEUE_PACKET) || cmd == std::string(1, CMD_SET_SETTINGS))
+        if(Check_CMD(cmd))
         {
-            ss << packet;
+            ss << SOP << DIR_CMD << cmd;
+
+            if(cmd == std::string(1, CMD_QUEUE_PACKET) || cmd == std::string(1, CMD_SET_SETTINGS))
+            {
+                ss << packet;
+            }
+
+            sentence = ss.str();
+            AppendChecksum(sentence);
+            serialConnection_.transmit(sentence);
+
+            ROS_DEBUG("Packet sent to Modem");
         }
+        else
+        {
+            ROS_INFO_STREAM("CMD unknow. Can't queue packet");
+        }
+    }
 
-        sentence = ss.str();
-        AppendChecksum(sentence);
-        serialConnection_.transmit(sentence);
+    bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)
+    {
+        const char *c_cmd = cmd.data();
 
-        ROS_DEBUG("Packet sent to Modem");
+        for(uint8_t i = 0; i < all_valid_size; ++i)
+        {
+            if(c_cmd[0] == all_valid[i])
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     void ProviderUnderwaterComNode::Read_Packet()
@@ -164,13 +185,14 @@ namespace provider_underwater_com
                 {
                     ROS_INFO_STREAM("Error on the response");
                 }
-                else if(buffer[2] == RESP_GOT_PACKET)
+                else if((buffer[2] == RESP_GOT_PACKET || buffer[2] == CMD_GET_SETTINGS || buffer[2] == CMD_GET_BUFFER_LENGTH
+                        || buffer[2] == CMD_GET_DIAGNOSTIC) && ConfirmChecksum(buffer))
                 {
                     std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
                     export_to_ros_str = std::string(buffer);
                     export_to_ros_cond.notify_one();
                 }
-                else if(buffer[2] != CMD_FLUSH && ConfirmChecksum(buffer))
+                else if(ConfirmChecksum(buffer))
                 {
                     std::unique_lock<std::mutex> mlock(response_mutex);
                     response_str = std::string(buffer);
@@ -206,6 +228,7 @@ namespace provider_underwater_com
         Verify_Version();   
         Get_Payload_Load();
         Set_Configuration(role, channel);
+        Flush_Queue();
     }
 
     void ProviderUnderwaterComNode::Verify_Version()
@@ -275,6 +298,29 @@ namespace provider_underwater_com
         else
         {
             ROS_DEBUG("Configuration set");
+        }
+    }
+
+    void ProviderUnderwaterComNode::Flush_Queue()
+    {
+        std::string acknowledge;
+
+        Queue_Packet(std::string(1, CMD_FLUSH));
+
+        std::unique_lock<std::mutex> mlock(response_mutex);
+        response_cond.wait(mlock);
+
+        std::stringstream ss(response_str);
+        std::getline(ss, acknowledge, ',');
+        std::getline(ss, acknowledge, '*');
+
+        if(acknowledge == std::string(1, NAK))
+        {
+            ROS_WARN_STREAM("Could not flush the queue");
+        }
+        else
+        {
+            ROS_DEBUG("Queue flushed");
         }
     }
 }

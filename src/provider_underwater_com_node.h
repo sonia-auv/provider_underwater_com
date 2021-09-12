@@ -59,12 +59,14 @@ class ProviderUnderwaterComNode
         bool ConfirmChecksum(const std::string &sentence);
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        bool Check_CMD(const std::string &cmd);
         void Read_Packet();
         void Export_To_ROS();
         void Set_Sensor(const char &role = ROLE_MASTER, uint8_t channel = 4);
         void Verify_Version();
         void Get_Payload_Load();
         void Set_Configuration(const char &role, uint8_t channel);
+        void Flush_Queue();
 
         ros::NodeHandlePtr nh_;
         Configuration configuration_;

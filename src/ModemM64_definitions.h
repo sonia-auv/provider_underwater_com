@@ -49,6 +49,19 @@
 #define ROLE_MASTER 'a'
 #define ROLE_SLAVE 'b'
 
+static const char all_valid [] = {
+    CMD_GET_VERSION,
+    CMD_GET_PAYLOAD_SIZE,
+    CMD_GET_BUFFER_LENGTH,
+    CMD_GET_DIAGNOSTIC,
+    CMD_GET_SETTINGS,
+    CMD_SET_SETTINGS,
+    CMD_QUEUE_PACKET,
+    CMD_FLUSH
+};
+
+static const uint8_t all_valid_size = 8;
+
 static const uint8_t crc_table[] = {
     0x00U,0x07U,0x0EU,0x09U,0x1CU,0x1BU,0x12U,0x15U,
     0x38U,0x3FU,0x36U,0x31U,0x24U,0x23U,0x2AU,0x2DU,

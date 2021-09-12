@@ -1,0 +1,7 @@
+#********** Driver Parameters ************
+
+/provider_underwater_com/connection/tty: "/dev/ttyUSB0"
+
+/provider_underwater_com/settings/role : "master"
+
+/provder_underwater_com/settings/channel : "4"

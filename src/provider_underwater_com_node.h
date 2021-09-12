@@ -85,6 +85,9 @@ class ProviderUnderwaterComNode
         std::condition_variable export_to_ros_cond;
         std::string export_to_ros_str = "";
 
+        char* role;
+        uint8_t channel_;
+        
         uint8_t payload_;
         bool init_error_ = false;
         std_msgs::String msg_received;

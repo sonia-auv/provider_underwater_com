@@ -1,0 +1,15 @@
+<launch>
+    <!-- parameters to setup the sensor for the communication-->
+    <arg name="role"    default="master"    doc="Set the role of the submarine (master or salve)" />
+    <arg name="channel" default="4"         doc="Set the channel for the commmunication (1 to 7)" />
+
+
+    <!-- load the provider -->
+    <node name="provider_underwater_com" pkg="provider_underwater_com" type="provider_underwater_com_node" output="screen" >
+    
+    <!-- parameters-->
+    <param name="role"      value="$(arg role)" />
+    <param name="channel"   value="$(arg channel)" />
+        
+    </node> 
+</launch>

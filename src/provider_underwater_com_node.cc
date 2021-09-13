@@ -58,7 +58,7 @@ namespace provider_underwater_com
     //Node Spin
     void ProviderUnderwaterComNode::Spin()
     {
-        ros::Rate r(1);
+        ros::Rate r(1); // 1 Hz
 
         while(ros::ok())
         {

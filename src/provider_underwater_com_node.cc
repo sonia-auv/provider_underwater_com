@@ -246,10 +246,6 @@ namespace provider_underwater_com
 
                 buffer[i] = 0;
 
-                /*if(buffer[1] != DIR_RESP || buffer[2] == RETURN_ERROR)
-                {
-                    ROS_INFO_STREAM("Error on the response. Resend message or check sensor.");
-                }*/
                 if(buffer[2] == RESP_GOT_PACKET && ConfirmChecksum(buffer))
                 {
                     std::unique_lock<std::mutex> mlock(export_to_ros_mutex);

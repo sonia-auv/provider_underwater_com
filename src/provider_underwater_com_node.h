@@ -92,6 +92,7 @@ class ProviderUnderwaterComNode
         char* role;
         uint8_t channel_;        
         uint8_t payload_;
+        bool init_error_ = true;
 };
 
 }

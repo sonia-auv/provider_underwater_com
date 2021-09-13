@@ -259,10 +259,23 @@ namespace provider_underwater_com
             role_[0] = ROLE_SLAVE;
         }
 
-        Verify_Version();   
-        Get_Payload_Load();
-        Set_Configuration(role_[0], channel);
-        Flush_Queue();
+        uint8_t i = 0;
+        
+        while(i < 3 && init_error_ == true)
+        {
+            init_error_ = false;
+            Verify_Version();   
+            Get_Payload_Load();
+            Set_Configuration(role_[0], channel);
+            Flush_Queue();
+            ++i;
+        }
+
+        if(i == 3)
+        {
+            ROS_ERROR("Problem with the init. Node shutting down.");
+            ros::shutdown();
+        }
     }
 
     void ProviderUnderwaterComNode::Verify_Version()
@@ -278,7 +291,11 @@ namespace provider_underwater_com
         std::getline(ss, major_version, ',');
         std::getline(ss, major_version, ',');
 
-        ROS_ASSERT_MSG(std::stoi(major_version) == 1, "Major Version isn't 1. Error with the sensor");
+        if(major_version != "1")
+        {
+            ROS_ERROR("Major Version isn't 1. Restarting init");
+            init_error_ = true;
+        }
     }
 
     void ProviderUnderwaterComNode::Get_Payload_Load()
@@ -294,9 +311,16 @@ namespace provider_underwater_com
         std::getline(ss, payload, ',');
         std::getline(ss, payload, '*');
 
-        payload_ = std::stoi(payload);
-
-        ROS_DEBUG("Payload set");
+        if(payload >= "0" || payload <= "9")
+        {
+            payload_ = std::stoi(payload);
+            ROS_DEBUG("Payload set");
+        }
+        else
+        {
+            ROS_ERROR("Payload isn't a integer. Restarting init");
+            init_error_ = true;
+        }
     }
 
     void ProviderUnderwaterComNode::Set_Configuration(const char &role, uint8_t channel)
@@ -316,7 +340,11 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        ROS_ASSERT_MSG(acknowledge == std::string(1, ACK), "Could not set the configuration. Error in settings");
+        if(acknowledge == std::string(1, NAK))
+        {
+            ROS_ERROR("Could not set the configuration. Restarting init");
+            init_error_ = true;
+        }
     }
 
     void ProviderUnderwaterComNode::Flush_Queue()
@@ -332,6 +360,10 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        ROS_ASSERT_MSG(acknowledge == std::string(1, ACK), "Couldn't flush the queue. Error with the sensor");
+        if(acknowledge == std::string(1, NAK))
+        {
+            ROS_ERROR("Couldn't flush the queue. Restarting init");
+            init_error_ = true;
+        }
     }
 }

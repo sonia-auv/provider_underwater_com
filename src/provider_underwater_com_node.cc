@@ -70,10 +70,8 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
     {
         std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
-        std::string dir = std::string(1, DIR_CMD);
-        std::string cmd = std::string(1, CMD_QUEUE_PACKET);
 
-        Queue_Packet(cmd, packet);
+        Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
     }
 
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)

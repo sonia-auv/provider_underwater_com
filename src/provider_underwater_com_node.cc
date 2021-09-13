@@ -84,15 +84,56 @@ namespace provider_underwater_com
         response_cond.wait(mlock);
 
         char cmd_rec = response_str.at(2);
+        std::stringstream ss(response_str);
 
         switch (cmd_rec)
         {
-        case CMD_GET_BUFFER_LENGTH:
-            break;
-        
-        default:
-            ROS_ERROR("CMD received isn't working with the service.");
-            break;
+            case CMD_GET_BUFFER_LENGTH:
+            {    
+                std::string queue_length;
+                
+                std::getline(ss, queue_length, ',');
+                std::getline(ss, queue_length, '*');
+
+                res.queue_length = std::stoi(queue_length);
+                break;
+            }
+            case CMD_GET_SETTINGS:
+            {
+                std::string role;
+                std::string channel;
+
+                std::getline(ss, role, ',');
+                std::getline(ss, role, ',');
+                std::getline(ss, channel, '*');
+
+                res.role = std::stoi(role);
+                res.channel = std::stoi(channel);
+                break;
+            }
+            case CMD_GET_DIAGNOSTIC:
+            {
+                std::string link_up;
+                std::string packet_count;
+                std::string packet_loss_count;
+                std::string bit_error_rate;
+
+                std::getline(ss, link_up, ',');
+                std::getline(ss, link_up, ',');
+                std::getline(ss, packet_count, ',');
+                std::getline(ss, packet_loss_count, ',');
+                std::getline(ss, bit_error_rate, '*');
+
+                res.link = std::stoi(link_up);
+                res.packet_count = std::stoi(packet_count);
+                res.packet_count_loss = std::stoi(packet_loss_count);
+                res.bit_error_rate = std::stof(bit_error_rate);
+            }
+            default:
+            {
+                ROS_ERROR("CMD received isn't working with the service.");
+                return false;
+            }
         }
         
         return true;
@@ -156,7 +197,7 @@ namespace provider_underwater_com
             AppendChecksum(sentence);
             serialConnection_.transmit(sentence);
 
-            ROS_DEBUG("Packet sent to Modem");
+            ROS_DEBUG_STREAM("Packet sent to Modem");
         }
         else
         {

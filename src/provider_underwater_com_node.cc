@@ -38,7 +38,7 @@ namespace provider_underwater_com
 
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
-        underwaterComService_ = nh_->advertiseService("/provider_undewater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
+        underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
 
         reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
         export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
@@ -91,7 +91,7 @@ namespace provider_underwater_com
             break;
         
         default:
-            ROS_ERROR("CMD received isn't working with the service.")
+            ROS_ERROR("CMD received isn't working with the service.");
             break;
         }
         

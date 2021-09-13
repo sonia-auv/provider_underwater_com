@@ -240,7 +240,7 @@ namespace provider_underwater_com
             catch(const std::out_of_range& e)
             {
                 msg.copy(buffer, msg.size()-(i*7),i*7);
-                packet_array[i] = std::string(buffer) + split_char;
+                packet_array[i] = std::string(buffer) + end_split_char;
             }
             
         }

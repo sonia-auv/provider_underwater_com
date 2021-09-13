@@ -228,6 +228,7 @@ namespace provider_underwater_com
         uint8_t size_msg = ceil(msg.size()/8);
         char buffer[7];
         std::string split_char = "&";
+        std::string end_split_char = "~";
 
         for(uint8_t i = 0; i < *nb_packet && i < size_array; ++i)
         {

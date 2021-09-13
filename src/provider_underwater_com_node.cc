@@ -83,9 +83,7 @@ namespace provider_underwater_com
         std::unique_lock<std::mutex> mlock(response_mutex);
         response_cond.wait(mlock);
 
-        const char *buffer = response_str.c_str();
-
-        switch (buffer[3])
+        switch (response_str.at(3))
         {
         case CMD_GET_BUFFER_LENGTH:
             ROS_INFO_STREAM("This thing worked wow");

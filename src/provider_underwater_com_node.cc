@@ -50,9 +50,9 @@ namespace provider_underwater_com
     //Node Destructor
     ProviderUnderwaterComNode::~ProviderUnderwaterComNode()
     {
-        underwaterComSubscriber_.shutdown();
         reader_thread.~thread();
         export_to_ros_thread.~thread();
+        underwaterComSubscriber_.shutdown();
     }
 
     //Node Spin
@@ -69,9 +69,24 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
     {
-        std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
+        if(Verify_Packet_Size(msg.data) <= 8)
+        {        
+            std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
 
-        Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
+            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
+        }
+        else
+        {
+            std::string packet_array[BUFFER_SIZE/8];
+            uint8_t nb_packet;
+
+            Split_Packet(packet_array, BUFFER_SIZE/8, &nb_packet, msg.data);
+
+            for(uint8_t i = 0; i < nb_packet; ++i)
+            {
+                Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet_array[i]);
+            }
+        }
     }
 
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
@@ -201,6 +216,35 @@ namespace provider_underwater_com
         {
             ROS_INFO_STREAM("CMD unknow. Can't queue packet");
         }
+    }
+
+    uint8_t ProviderUnderwaterComNode::Verify_Packet_Size(const std::string &packet)
+    {
+        return packet.size();
+    }
+    
+    void ProviderUnderwaterComNode::Split_Packet(std::string *packet_array, uint8_t size_array, uint8_t *nb_packet, const std::string &msg)
+    {
+        uint8_t size_msg = ceil(msg.size()/8);
+        char buffer[7];
+        std::string split_char = "&";
+
+        for(uint8_t i = 0; i < *nb_packet && i < size_array; ++i)
+        {
+            try
+            {
+                packet_array[i] = msg.substr(i*7, 7);
+                packet_array[i] += split_char;
+            }
+            catch(const std::out_of_range& e)
+            {
+                msg.copy(buffer, msg.size()-(i*7),i*7);
+                packet_array[i] = std::string(buffer) + split_char;
+            }
+            
+        }
+        
+        *nb_packet = size_msg;
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)

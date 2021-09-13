@@ -88,10 +88,10 @@ namespace provider_underwater_com
         switch (cmd_rec)
         {
         case CMD_GET_BUFFER_LENGTH:
-            ROS_INFO_STREAM("This thing worked wow");
             break;
         
         default:
+            ROS_ERROR("CMD received isn't working with the service.")
             break;
         }
         

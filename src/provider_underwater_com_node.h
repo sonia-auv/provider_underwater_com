@@ -28,10 +28,18 @@
 
 #include <ros/ros.h>
 #include <string>
-#include <std_msgs/UInt8.h>
+#include <std_msgs/String.h>
+#include <fstream>
+#include <sstream>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 
 #include "Configuration.h"
 #include "drivers/serial.h"
+#include <sonia_common/ModemM64_definitions.h>
+//#include "ModemM64_definitions.h"
+#include <sonia_common/ModemPacket.h>
 
 namespace provider_underwater_com {
 
@@ -46,23 +54,46 @@ class ProviderUnderwaterComNode
     
     private:
 
-        void UnderwaterComCallback(const std_msgs::UInt8 & msg);
+        void UnderwaterComCallback(const std_msgs::String &msg);
+        bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
-    ros::NodeHandlePtr nh_;
-    //Configuration configuration_;
-    //Serial serialConnection_;
-    
-    ros::Subscriber underwaterComSubscriber_;
-    ros::Publisher underwaterComPublisher_;
+        uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
+        void AppendChecksum(std::string &sentence);
+        bool ConfirmChecksum(const std::string &sentence);
 
-    std::string str_get_version = "wcv";
-    std::string str_get_payload_size = "wcn";
-    std::string str_get_modem_config = "wcc";
-    std::string str_set_modem_config = "wcs";
-    std::string str_get_transmit_queue_length = "wcl";
-    std::string str_flush_transmit_queue = "wcf";
-    std::string str_get_diagnostic = "wcd";
-    std::string str_queue_for_transmit = "wcq";
+        void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        bool Check_CMD(const std::string &cmd);
+        void Read_Packet();
+        void Export_To_ROS();
+        void Set_Sensor(std::string &role, uint8_t channel = 4);
+        void Verify_Version();
+        void Get_Payload_Load();
+        void Set_Configuration(const char &role, uint8_t channel);
+        void Flush_Queue();
+
+        ros::NodeHandlePtr nh_;
+        Configuration configuration_;
+        Serial serialConnection_;
+        
+        ros::Subscriber underwaterComSubscriber_;
+        ros::Publisher underwaterComPublisher_;
+        ros::ServiceServer underwaterComService_;
+        std_msgs::String msg_received;
+
+        std::thread reader_thread;
+        std::mutex response_mutex;
+        std::condition_variable response_cond;
+        std::string response_str = "";
+
+        std::thread export_to_ros_thread;
+        std::mutex export_to_ros_mutex;
+        std::condition_variable export_to_ros_cond;
+        std::string export_to_ros_str = "";
+
+        char* role;
+        uint8_t channel_;        
+        uint8_t payload_;
+        bool init_error_ = true;
 };
 
 }

@@ -30,8 +30,10 @@ namespace provider_underwater_com
 
     Configuration::Configuration(const ros::NodeHandlePtr &nh)
         : nh(nh),
-          ttyPort("/dev/MODEM"),
-          settingsFile("settings.txt")
+          ttyPort("/dev/ttyUSB0"), // "/dev/MODEM" for AUVs, debug only
+          settingsFile("settings.txt"),
+          role("master"),
+          channel("4")
     {
         Deserialize();
     }
@@ -43,7 +45,8 @@ namespace provider_underwater_com
         ROS_INFO("Deserialize params");
 
         FindParameter("/connection/tty_port", ttyPort);
-        FindParameter("/settings/setting_file", settingsFile);
+        FindParameter("/settings/role", role);
+        FindParameter("/settings/channel", channel);
 
         ROS_INFO("End deserialize params");
     }

@@ -78,14 +78,17 @@ namespace provider_underwater_com
         else
         {
             std::string packet_array[BUFFER_SIZE/8];
-            uint8_t nb_packet;
+            size_t nb_packet = Split_Packet(packet_array, BUFFER_SIZE/8, msg.data);
+            std::string start_header = HEADER + std::string(1, nb_packet);
 
-            Split_Packet(packet_array, BUFFER_SIZE/8, &nb_packet, msg.data);
+            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), start_header);
 
             for(uint8_t i = 0; i < nb_packet; ++i)
             {
                 Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet_array[i]);
             }
+
+            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), END);
         }
     }
 
@@ -223,29 +226,26 @@ namespace provider_underwater_com
         return packet.size();
     }
     
-    void ProviderUnderwaterComNode::Split_Packet(std::string *packet_array, uint8_t size_array, uint8_t *nb_packet, const std::string &msg)
+    size_t ProviderUnderwaterComNode::Split_Packet(std::string *packet_array, uint8_t size_array, const std::string &msg)
     {
-        uint8_t size_msg = ceil(msg.size()/8);
+        size_t size_packet = ceil(msg.size()/8.0);
         char buffer[7];
-        std::string split_char = "&";
-        std::string end_split_char = "~";
 
-        for(uint8_t i = 0; i < *nb_packet && i < size_array; ++i)
+        for(uint8_t i = 0; i < size_packet && i < size_array; ++i)
         {
             try
             {
-                packet_array[i] = msg.substr(i*7, 7);
-                packet_array[i] += split_char;
+                packet_array[i] = msg.substr(i*8, 8);
             }
             catch(const std::out_of_range& e)
             {
-                msg.copy(buffer, msg.size()-(i*7),i*7);
-                packet_array[i] = std::string(buffer) + end_split_char;
+                msg.copy(buffer, msg.size()-(i*8),i*8);
+                packet_array[i] = std::string(buffer);
             }
             
         }
         
-        *nb_packet = size_msg;
+        return size_packet;
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)

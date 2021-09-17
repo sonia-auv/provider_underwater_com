@@ -340,10 +340,12 @@ namespace provider_underwater_com
         if(role == "master")
         {
             role_[0] = ROLE_MASTER;
+            role_ = ROLE_MASTER:
         }
         else
         {
             role_[0] = ROLE_SLAVE;
+            role_ = ROLE_SLAVE;
         }
 
         uint8_t i = 0;

@@ -40,8 +40,8 @@ namespace provider_underwater_com
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
 
-        reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
-        export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
+        manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
+        //export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
 
         std::string role_sensor = configuration_.getRole();
         Set_Sensor(role_sensor, std::stoi(configuration_.getChannel()));
@@ -50,7 +50,7 @@ namespace provider_underwater_com
     //Node Destructor
     ProviderUnderwaterComNode::~ProviderUnderwaterComNode()
     {
-        reader_thread.~thread();
+        manage_thread.~thread();
         export_to_ros_thread.~thread();
         underwaterComSubscriber_.shutdown();
     }
@@ -69,27 +69,8 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
     {
-        if(Verify_Packet_Size(msg.data) <= 8)
-        {        
-            std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
-
-            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
-        }
-        else
-        {
-            std::string packet_array[BUFFER_SIZE/8];
-            size_t nb_packet = Split_Packet(packet_array, BUFFER_SIZE/8, msg.data);
-            std::string start_header = HEADER + std::string(1, nb_packet);
-
-            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), start_header);
-
-            for(uint8_t i = 0; i < nb_packet; ++i)
-            {
-                Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet_array[i]);
-            }
-
-            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), END);
-        }
+        std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
+        Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
     }
 
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
@@ -211,7 +192,7 @@ namespace provider_underwater_com
 
             sentence = ss.str();
             AppendChecksum(sentence);
-            serialConnection_.transmit(sentence);
+            writerQueue.push_back(sentence);
 
             ROS_DEBUG_STREAM("Packet sent to Modem");
         }
@@ -219,6 +200,31 @@ namespace provider_underwater_com
         {
             ROS_INFO_STREAM("CMD unknow. Can't queue packet");
         }
+    }
+
+    bool ProviderUnderwaterComNode::Read_for_Packet(char *buffer)
+    {
+        clock_t start = clock();
+        
+        while((float_t)(clock()-start) / CLOCKS_PER_SEC <= timeout_)
+        {
+            serialConnection_.readOnce(buffer, 0);
+
+            if(buffer[0] == SOP)
+            {
+                uint8_t i;
+
+                for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)
+                {
+                    serialConnection_. readOnce(buffer, i);
+                }
+
+                buffer[i] = 0;
+                return true;
+            }
+        }
+        ROS_WARN_STREAM("No response from the other sensor");
+        return false;
     }
 
     uint8_t ProviderUnderwaterComNode::Verify_Packet_Size(const std::string &packet)
@@ -262,44 +268,43 @@ namespace provider_underwater_com
         return false;
     }
 
-    void ProviderUnderwaterComNode::Read_Packet()
+    void ProviderUnderwaterComNode::Manage_Packet()
     {
-        ROS_INFO_STREAM("Read thread started");
+        ROS_INFO_STREAM("Manage thread started");
         char buffer[BUFFER_SIZE];
 
             while(!ros::isShuttingDown())
             {
-                do 
-                {
-                    serialConnection_.readOnce(buffer, 0);
-                } 
-                while (buffer[0] != SOP);
-                
-                uint8_t i;
+                ros::Duration(0.1).sleep();
 
-                for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)
+                while(!writerQueue.empty())
                 {
-                    serialConnection_. readOnce(buffer, i);
-                }
+                    serialConnection_.transmit(writerQueue.front());
+                    
+                    Read_for_Packet(buffer);
 
-                if(i >= BUFFER_SIZE)
-                {
-                    continue;
-                }
+                    if(buffer[2] == RESP_GOT_PACKET && ConfirmChecksum(buffer))
+                    {
+                        if(buffer[4] == ACK)
+                        {
+                            if(Read_for_Packet(buffer))
+                            {
+                                writerQueue.get_n_pop_front();
+                            }
+                        }
+                    }
 
-                buffer[i] = 0;
-
-                if(buffer[2] == RESP_GOT_PACKET && ConfirmChecksum(buffer))
-                {
-                    std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
+                    /*std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
                     export_to_ros_str = std::string(buffer);
-                    export_to_ros_cond.notify_one();
-                }
-                else if(ConfirmChecksum(buffer))
-                {
-                    std::unique_lock<std::mutex> mlock(response_mutex);
-                    response_str = std::string(buffer);
-                    response_cond.notify_one();
+                    export_to_ros_cond.notify_one();*/
+
+                    if(ConfirmChecksum(buffer))
+                    {
+                        std::unique_lock<std::mutex> mlock(response_mutex);
+                        response_str = std::string(buffer);
+                        response_cond.notify_one();
+                        writerQueue.get_n_pop_front();
+                    }
                 }
             }
     }

@@ -35,12 +35,14 @@
 #include <condition_variable>
 #include <thread>
 #include <math.h>
+#include <time.h>
 
 #include "Configuration.h"
 #include "drivers/serial.h"
 #include <sonia_common/ModemM64_definitions.h>
 //#include "ModemM64_definitions.h"
 #include <sonia_common/ModemPacket.h>
+#include "sharedQueue.h"
 
 #define HEADER "hd:p="
 #define END "hd:end"
@@ -66,11 +68,12 @@ class ProviderUnderwaterComNode
         bool ConfirmChecksum(const std::string &sentence);
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        bool Read_for_Packet(char *buffer);
         uint8_t Verify_Packet_Size(const std::string &packet);
         size_t Split_Packet(std::string *packet_array, uint8_t size_array, const std::string &msg);
         bool Check_CMD(const std::string &cmd);
 
-        void Read_Packet();
+        void Manage_Packet();
         void Export_To_ROS();
 
         void Set_Sensor(std::string &role, uint8_t channel = 4);
@@ -88,7 +91,7 @@ class ProviderUnderwaterComNode
         ros::ServiceServer underwaterComService_;
         std_msgs::String msg_received;
 
-        std::thread reader_thread;
+        std::thread manage_thread;
         std::mutex response_mutex;
         std::condition_variable response_cond;
         std::string response_str = "";
@@ -102,6 +105,13 @@ class ProviderUnderwaterComNode
         uint8_t channel_;        
         uint8_t payload_;
         bool init_error_ = true;
+
+        SharedQueue<std::string> writerQueue;
+        SharedQueue<std::string> readerQueue;
+
+        ros::Duration sleeptime;
+
+        float_t timeout_ = 10;
 };
 
 }

@@ -277,7 +277,7 @@ namespace provider_underwater_com
             {
                 ros::Duration(0.1).sleep();
 
-                while(!writerQueue.empty())
+                while(!writerQueue.empty() && )
                 {
                     serialConnection_.transmit(writerQueue.front());
                     

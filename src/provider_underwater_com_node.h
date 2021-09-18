@@ -44,8 +44,7 @@
 #include <sonia_common/ModemPacket.h>
 #include "sharedQueue.h"
 
-#define HEADER "hd:p="
-#define END "hd:end"
+#define MALFORMED '!'
 
 namespace provider_underwater_com {
 
@@ -92,11 +91,12 @@ class ProviderUnderwaterComNode
         std_msgs::String msg_received;
 
         std::thread manage_thread;
+        std::thread export_to_ros_thread;
+
         std::mutex response_mutex;
         std::condition_variable response_cond;
         std::string response_str = "";
 
-        std::thread export_to_ros_thread;
         std::mutex export_to_ros_mutex;
         std::condition_variable export_to_ros_cond;
         std::string export_to_ros_str = "";
@@ -111,7 +111,7 @@ class ProviderUnderwaterComNode
 
         ros::Duration sleeptime;
 
-        float_t timeout_ = 10;
+        float_t timeout_ = 10.0;
 };
 
 }

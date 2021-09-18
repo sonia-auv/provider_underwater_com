@@ -41,7 +41,7 @@ namespace provider_underwater_com
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
 
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
-        //export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
+        export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
 
         std::string role_sensor = configuration_.getRole();
         Set_Sensor(role_sensor, std::stoi(configuration_.getChannel()));
@@ -205,8 +205,9 @@ namespace provider_underwater_com
     bool ProviderUnderwaterComNode::Read_for_Packet(char *buffer)
     {
         clock_t start = clock();
+        clock_t now = clock();
         
-        while((float_t)(clock()-start) / CLOCKS_PER_SEC <= timeout_)
+        while((now-start) / CLOCKS_PER_SEC <= timeout_)
         {
             serialConnection_.readOnce(buffer, 0);
 
@@ -222,6 +223,8 @@ namespace provider_underwater_com
                 buffer[i] = 0;
                 return true;
             }
+
+            now = clock();
         }
         ROS_WARN_STREAM("No response from the other sensor");
         return false;
@@ -272,39 +275,52 @@ namespace provider_underwater_com
     {
         ROS_INFO_STREAM("Manage thread started");
         char buffer[BUFFER_SIZE];
+        bool new_packet;
+        bool resend = true;
 
             while(!ros::isShuttingDown())
             {
                 ros::Duration(0.1).sleep();
 
-                while(!writerQueue.empty() && )
+                while(!writerQueue.empty() && role_ == ROLE_MASTER)
                 {
-                    serialConnection_.transmit(writerQueue.front());
-                    
-                    Read_for_Packet(buffer);
+                    if(resend) serialConnection_.transmit(writerQueue.front());
 
-                    if(buffer[2] == RESP_GOT_PACKET && ConfirmChecksum(buffer))
+                    resend = true;
+                    
+                    new_packet = Read_for_Packet(buffer);
+
+                    if(ConfirmChecksum(buffer) && new_packet)
                     {
-                        if(buffer[4] == ACK)
+                        if(buffer[2] == RESP_GOT_PACKET)
                         {
-                            if(Read_for_Packet(buffer))
-                            {
-                                writerQueue.get_n_pop_front();
-                            }
+                            std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
+                            export_to_ros_str = std::string(buffer);
+                            export_to_ros_cond.notify_one();
+                            writerQueue.get_n_pop_front();
+                        }
+                        else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
+                        {
+                            resend = false;
+                        }
+                        else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
+                        {
+                            ROS_WARN_STREAM("Resquest not made properly");
+                            writerQueue.get_n_pop_front();
+                        }
+                        else
+                        {
+                            std::unique_lock<std::mutex> mlock(response_mutex);
+                            response_str = std::string(buffer);
+                            response_cond.notify_one();
+                            writerQueue.get_n_pop_front();
                         }
                     }
+                }
 
-                    /*std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
-                    export_to_ros_str = std::string(buffer);
-                    export_to_ros_cond.notify_one();*/
-
-                    if(ConfirmChecksum(buffer))
-                    {
-                        std::unique_lock<std::mutex> mlock(response_mutex);
-                        response_str = std::string(buffer);
-                        response_cond.notify_one();
-                        writerQueue.get_n_pop_front();
-                    }
+                while(!readerQueue.empty() && role_ == ROLE_SLAVE)
+                {
+                    ROS_INFO_STREAM("I am listening");
                 }
             }
     }
@@ -333,18 +349,14 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Set_Sensor(std::string &role, uint8_t channel)
     {
-        char role_[2];
-
         ROS_ASSERT_MSG(role == "master" || role == "slave", "Set the role as 'master' or 'slave'. Error in config");
 
         if(role == "master")
         {
-            role_[0] = ROLE_MASTER;
-            role_ = ROLE_MASTER:
+            role_ = ROLE_MASTER;
         }
         else
         {
-            role_[0] = ROLE_SLAVE;
             role_ = ROLE_SLAVE;
         }
 
@@ -355,7 +367,7 @@ namespace provider_underwater_com
             init_error_ = false;
             Verify_Version();   
             Get_Payload_Load();
-            Set_Configuration(role_[0], channel);
+            Set_Configuration(role_, channel);
             Flush_Queue();
             ++i;
         }

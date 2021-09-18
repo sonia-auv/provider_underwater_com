@@ -311,6 +311,11 @@ namespace provider_underwater_com
         }
     }
 
+    void ProviderUnderwaterComNode::Manage_Pakcet_Slave()
+    {
+        
+    }
+
     void ProviderUnderwaterComNode::Manage_Packet()
     {
         ROS_INFO_STREAM("Manage thread started");

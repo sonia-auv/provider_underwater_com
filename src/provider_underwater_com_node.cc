@@ -41,10 +41,14 @@ namespace provider_underwater_com
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
 
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
-        export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
-
+        
         std::string role_sensor = configuration_.getRole();
         Set_Sensor(role_sensor, std::stoi(configuration_.getChannel()));
+
+        if(role_ == ROLE_SLAVE)
+        {
+            read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
+        }
     }
 
     //Node Destructor
@@ -290,7 +294,7 @@ namespace provider_underwater_com
                 std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
                 export_to_ros_str = std::string(buffer);
                 export_to_ros_cond.notify_one();
-                writerQueue.get_n_pop_front();
+                writerQueue.pop_front();
             }
             else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
             {
@@ -298,17 +302,29 @@ namespace provider_underwater_com
             }
             else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
             {
-                ROS_WARN_STREAM("Resquest not made properly");
-                writerQueue.get_n_pop_front();
+                ROS_ERROR_STREAM("Resquest not made properly");
+                writerQueue.pop_front();
             }
             else
             {
                 std::unique_lock<std::mutex> mlock(response_mutex);
                 response_str = std::string(buffer);
                 response_cond.notify_one();
-                writerQueue.get_n_pop_front();
+                writerQueue.pop_front();
             }
         }
+    }
+
+    void ProviderUnderwaterComNode::Manage_Packet_Slave()
+    {
+        Export_To_ROS(readerQueue.get_n_pop_front());
+
+        while(writerQueue.empty())
+        {
+            ros::Duration(1).sleep();
+        }
+
+        serialConnection_.transmit(writerQueue.get_n_pop_front());
     }
 
     void ProviderUnderwaterComNode::Manage_Packet()
@@ -328,30 +344,42 @@ namespace provider_underwater_com
                 while(!readerQueue.empty() && role_ == ROLE_SLAVE)
                 {
                     ROS_INFO_STREAM("I am listening");
-                    Manage_Pakcet_Slave();
+                    Manage_Packet_Slave();
                 }
             }
     }
 
-    void ProviderUnderwaterComNode::Export_To_ROS()
+    void ProviderUnderwaterComNode::Export_To_ROS(std::string buffer)
     {
         std::string size;
         std::string msg;
 
+        msg_received.data.clear();
+        std::stringstream ss(buffer);
+        std::getline(ss, size, ','); // TODO add a size check before publish and check if message good
+        std::getline(ss, size, ',');
+        std::getline(ss, msg, '*');
+
+        msg_received.data = msg;
+
+        underwaterComPublisher_.publish(msg_received);
+    }
+
+    void ProviderUnderwaterComNode::Read_for_Packet_Slave()
+    {
+        char buffer[BUFFER_SIZE];
+        bool new_packet = false;
+
         while(!ros::isShuttingDown())
         {
-            msg_received.data.clear();
-            std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
-            export_to_ros_cond.wait(mlock);
+            ros::Duration(0.1).sleep();
+            
+            new_packet = Read_for_Packet(buffer);
 
-            std::stringstream ss(export_to_ros_str);
-            std::getline(ss, size, ','); // TODO add a size check before publish and check if message good
-            std::getline(ss, size, ',');
-            std::getline(ss, msg, '*');
-
-            msg_received.data = msg;
-
-            underwaterComPublisher_.publish(msg_received);
+            if(new_packet && ConfirmChecksum(buffer))
+            {
+                readerQueue.push_back(buffer);
+            }
         }
     }
 

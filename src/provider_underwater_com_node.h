@@ -71,11 +71,13 @@ class ProviderUnderwaterComNode
         uint8_t Verify_Packet_Size(const std::string &packet);
         size_t Split_Packet(std::string *packet_array, uint8_t size_array, const std::string &msg);
         bool Check_CMD(const std::string &cmd);
+
         void Manage_Packet_Master();
-        void Manage_Pakcet_Slave();
+        void Manage_Packet_Slave();
 
         void Manage_Packet();
-        void Export_To_ROS();
+        void Export_To_ROS(std::string buffer);
+        void Read_for_Packet_Slave();
 
         void Set_Sensor(std::string &role, uint8_t channel = 4);
         void Verify_Version();
@@ -94,6 +96,7 @@ class ProviderUnderwaterComNode
 
         std::thread manage_thread;
         std::thread export_to_ros_thread;
+        std::thread read_for_packet_slave;
 
         std::mutex response_mutex;
         std::condition_variable response_cond;

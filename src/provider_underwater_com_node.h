@@ -67,9 +67,8 @@ class ProviderUnderwaterComNode
         bool ConfirmChecksum(const std::string &sentence);
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        bool Transmit_Packet(bool pop_packet);
         bool Read_for_Packet(char *buffer);
-        uint8_t Verify_Packet_Size(const std::string &packet);
-        size_t Split_Packet(std::string *packet_array, uint8_t size_array, const std::string &msg);
         bool Check_CMD(const std::string &cmd);
 
         void Manage_Packet_Master();
@@ -95,16 +94,9 @@ class ProviderUnderwaterComNode
         std_msgs::String msg_received;
 
         std::thread manage_thread;
-        std::thread export_to_ros_thread;
         std::thread read_for_packet_slave;
 
-        std::mutex response_mutex;
-        std::condition_variable response_cond;
-        std::string response_str = "";
-
-        std::mutex export_to_ros_mutex;
-        std::condition_variable export_to_ros_cond;
-        std::string export_to_ros_str = "";
+        std::mutex writerQueue_mutex;
 
         char role_;
         uint8_t channel_;        

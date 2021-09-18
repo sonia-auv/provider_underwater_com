@@ -71,6 +71,8 @@ class ProviderUnderwaterComNode
         uint8_t Verify_Packet_Size(const std::string &packet);
         size_t Split_Packet(std::string *packet_array, uint8_t size_array, const std::string &msg);
         bool Check_CMD(const std::string &cmd);
+        void Manage_Packet_Master();
+        void Manage_Pakcet_Slave();
 
         void Manage_Packet();
         void Export_To_ROS();

@@ -271,12 +271,49 @@ namespace provider_underwater_com
         return false;
     }
 
+    void ProviderUnderwaterComNode::Manage_Packet_Master()
+    {
+        char buffer[BUFFER_SIZE];
+        bool resend = true;
+        bool new_packet;
+        
+        if(resend) serialConnection_.transmit(writerQueue.front());
+
+        resend = true;
+        
+        new_packet = Read_for_Packet(buffer);
+
+        if(ConfirmChecksum(buffer) && new_packet)
+        {
+            if(buffer[2] == RESP_GOT_PACKET)
+            {
+                std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
+                export_to_ros_str = std::string(buffer);
+                export_to_ros_cond.notify_one();
+                writerQueue.get_n_pop_front();
+            }
+            else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
+            {
+                resend = false;
+            }
+            else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
+            {
+                ROS_WARN_STREAM("Resquest not made properly");
+                writerQueue.get_n_pop_front();
+            }
+            else
+            {
+                std::unique_lock<std::mutex> mlock(response_mutex);
+                response_str = std::string(buffer);
+                response_cond.notify_one();
+                writerQueue.get_n_pop_front();
+            }
+        }
+    }
+
     void ProviderUnderwaterComNode::Manage_Packet()
     {
         ROS_INFO_STREAM("Manage thread started");
-        char buffer[BUFFER_SIZE];
-        bool new_packet;
-        bool resend = true;
 
             while(!ros::isShuttingDown())
             {
@@ -284,43 +321,14 @@ namespace provider_underwater_com
 
                 while(!writerQueue.empty() && role_ == ROLE_MASTER)
                 {
-                    if(resend) serialConnection_.transmit(writerQueue.front());
-
-                    resend = true;
-                    
-                    new_packet = Read_for_Packet(buffer);
-
-                    if(ConfirmChecksum(buffer) && new_packet)
-                    {
-                        if(buffer[2] == RESP_GOT_PACKET)
-                        {
-                            std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
-                            export_to_ros_str = std::string(buffer);
-                            export_to_ros_cond.notify_one();
-                            writerQueue.get_n_pop_front();
-                        }
-                        else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
-                        {
-                            resend = false;
-                        }
-                        else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
-                        {
-                            ROS_WARN_STREAM("Resquest not made properly");
-                            writerQueue.get_n_pop_front();
-                        }
-                        else
-                        {
-                            std::unique_lock<std::mutex> mlock(response_mutex);
-                            response_str = std::string(buffer);
-                            response_cond.notify_one();
-                            writerQueue.get_n_pop_front();
-                        }
-                    }
+                    ROS_INFO_STREAM("I am sending");
+                    Manage_Packet_Master();
                 }
 
                 while(!readerQueue.empty() && role_ == ROLE_SLAVE)
                 {
                     ROS_INFO_STREAM("I am listening");
+                    Manage_Pakcet_Slave();
                 }
             }
     }

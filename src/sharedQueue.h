@@ -1,7 +1,7 @@
 /**
  * \file	serial.h
- * \author	Lucas Mongrain
- * \date	26/10/2017
+ * \author	user66875 (https://stackoverflow.com/a/36763257)
+ * \date	21/04/2016
  * 
  * \copyright Copyright (c) 2021 S.O.N.I.A. All rights reserved.
  *

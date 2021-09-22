@@ -39,19 +39,22 @@ namespace provider_underwater_com
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
-
-        reader_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
-        export_to_ros_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Export_To_ROS, this));
-
+        
         std::string role_sensor = configuration_.getRole();
         Set_Sensor(role_sensor, std::stoi(configuration_.getChannel()));
+
+        if(role_ == ROLE_SLAVE)
+        {
+            read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
+        }
+        manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
     }
 
     //Node Destructor
     ProviderUnderwaterComNode::~ProviderUnderwaterComNode()
     {
-        reader_thread.~thread();
-        export_to_ros_thread.~thread();
+        manage_thread.~thread();
+        read_for_packet_slave.~thread();
         underwaterComSubscriber_.shutdown();
     }
 
@@ -69,38 +72,24 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
     {
-        if(Verify_Packet_Size(msg.data) <= 8)
-        {        
-            std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
-
-            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
-        }
-        else
-        {
-            std::string packet_array[BUFFER_SIZE/8];
-            size_t nb_packet = Split_Packet(packet_array, BUFFER_SIZE/8, msg.data);
-            std::string start_header = HEADER + std::string(1, nb_packet);
-
-            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), start_header);
-
-            for(uint8_t i = 0; i < nb_packet; ++i)
-            {
-                Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet_array[i]);
-            }
-
-            Queue_Packet(std::string(1, CMD_QUEUE_PACKET), END);
-        }
+        std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
+        Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
     }
 
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
     {   
+        char buffer[BUFFER_SIZE];
+        
+        writerQueue_mutex.lock();
+
         Queue_Packet(std::string(1, req.cmd));
+        Transmit_Packet(true);
+        Read_for_Packet(buffer);
 
-        std::unique_lock<std::mutex> mlock(response_mutex);
-        response_cond.wait(mlock);
+        writerQueue_mutex.unlock();
 
-        char cmd_rec = response_str.at(2);
-        std::stringstream ss(response_str);
+        char cmd_rec = buffer[2];
+        std::stringstream ss(buffer);
 
         switch (cmd_rec)
         {
@@ -211,7 +200,7 @@ namespace provider_underwater_com
 
             sentence = ss.str();
             AppendChecksum(sentence);
-            serialConnection_.transmit(sentence);
+            writerQueue.push_back(sentence);
 
             ROS_DEBUG_STREAM("Packet sent to Modem");
         }
@@ -221,31 +210,46 @@ namespace provider_underwater_com
         }
     }
 
-    uint8_t ProviderUnderwaterComNode::Verify_Packet_Size(const std::string &packet)
+    bool ProviderUnderwaterComNode::Transmit_Packet(bool pop_packet)
     {
-        return packet.size();
-    }
-    
-    size_t ProviderUnderwaterComNode::Split_Packet(std::string *packet_array, uint8_t size_array, const std::string &msg)
-    {
-        size_t size_packet = ceil(msg.size()/8.0);
-        char buffer[7];
-
-        for(uint8_t i = 0; i < size_packet && i < size_array; ++i)
+        if(!writerQueue.empty())
         {
-            try
-            {
-                packet_array[i] = msg.substr(i*8, 8);
-            }
-            catch(const std::out_of_range& e)
-            {
-                msg.copy(buffer, msg.size()-(i*8),i*8);
-                packet_array[i] = std::string(buffer);
-            }
-            
+            serialConnection_.transmit(writerQueue.front());
+            if(pop_packet) writerQueue.pop_front();
+            return true;
         }
+        else
+        {
+            ROS_WARN_STREAM("Packet isn't queue");
+            return false;
+        }
+    }
+
+    bool ProviderUnderwaterComNode::Read_for_Packet(char *buffer)
+    {
+        clock_t start = clock();
+        clock_t now = clock();
         
-        return size_packet;
+        while((now-start) / CLOCKS_PER_SEC <= timeout_)
+        {
+            serialConnection_.readOnce(buffer, 0);
+
+            if(buffer[0] == SOP)
+            {
+                uint8_t i;
+
+                for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)
+                {
+                    serialConnection_. readOnce(buffer, i);
+                }
+
+                buffer[i] = 0;
+                return true;
+            }
+
+            now = clock();
+        }
+        return false;
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)
@@ -262,83 +266,120 @@ namespace provider_underwater_com
         return false;
     }
 
-    void ProviderUnderwaterComNode::Read_Packet()
+    void ProviderUnderwaterComNode::Manage_Packet_Master()
     {
-        ROS_INFO_STREAM("Read thread started");
         char buffer[BUFFER_SIZE];
+        bool resend = true;
+        bool new_packet;
+        
+        if(resend) Transmit_Packet(false);
+
+        resend = true;
+
+        new_packet = Read_for_Packet(buffer);
+
+        if(ConfirmChecksum(buffer) && new_packet)
+        {
+            if(buffer[2] == RESP_GOT_PACKET)
+            {
+                Export_To_ROS(buffer);
+                writerQueue.pop_front();
+            }
+            else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
+            {
+                resend = false;
+            }
+            else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
+            {
+                ROS_ERROR_STREAM("Resquest not made properly");
+                writerQueue.pop_front();
+            }
+        }
+    }
+
+    void ProviderUnderwaterComNode::Manage_Packet_Slave()
+    {
+        Export_To_ROS(readerQueue.get_n_pop_front());
+
+        while(writerQueue.empty())
+        {
+            ros::Duration(1).sleep();
+        }
+
+        Transmit_Packet(true);
+    }
+
+    void ProviderUnderwaterComNode::Manage_Packet()
+    {
+        ROS_INFO_STREAM("Manage thread started");
 
             while(!ros::isShuttingDown())
             {
-                do 
+                ros::Duration(1).sleep();
+
+                writerQueue_mutex.lock();
+
+                while(!writerQueue.empty() && role_ == ROLE_MASTER)
                 {
-                    serialConnection_.readOnce(buffer, 0);
-                } 
-                while (buffer[0] != SOP);
+                    ROS_INFO_STREAM("I am sending");
+                    Manage_Packet_Master();
+                }
                 
-                uint8_t i;
+                writerQueue_mutex.unlock();
 
-                for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)
+                while(!readerQueue.empty() && role_ == ROLE_SLAVE)
                 {
-                    serialConnection_. readOnce(buffer, i);
-                }
-
-                if(i >= BUFFER_SIZE)
-                {
-                    continue;
-                }
-
-                buffer[i] = 0;
-
-                if(buffer[2] == RESP_GOT_PACKET && ConfirmChecksum(buffer))
-                {
-                    std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
-                    export_to_ros_str = std::string(buffer);
-                    export_to_ros_cond.notify_one();
-                }
-                else if(ConfirmChecksum(buffer))
-                {
-                    std::unique_lock<std::mutex> mlock(response_mutex);
-                    response_str = std::string(buffer);
-                    response_cond.notify_one();
+                    ROS_INFO_STREAM("I am listening");
+                    Manage_Packet_Slave();
                 }
             }
     }
 
-    void ProviderUnderwaterComNode::Export_To_ROS()
+    void ProviderUnderwaterComNode::Export_To_ROS(std::string buffer)
     {
         std::string size;
         std::string msg;
 
+        msg_received.data.clear();
+        std::stringstream ss(buffer);
+        std::getline(ss, size, ','); // TODO add a size check before publish and check if message good
+        std::getline(ss, size, ',');
+        std::getline(ss, msg, '*');
+
+        msg_received.data = msg;
+
+        underwaterComPublisher_.publish(msg_received);
+    }
+
+    void ProviderUnderwaterComNode::Read_for_Packet_Slave()
+    {
+        char buffer[BUFFER_SIZE];
+        bool new_packet = false;
+
         while(!ros::isShuttingDown())
         {
-            msg_received.data.clear();
-            std::unique_lock<std::mutex> mlock(export_to_ros_mutex);
-            export_to_ros_cond.wait(mlock);
+            ros::Duration(0.1).sleep();
+            
+            new_packet = Read_for_Packet(buffer);
 
-            std::stringstream ss(export_to_ros_str);
-            std::getline(ss, size, ','); // TODO add a size check before publish and check if message good
-            std::getline(ss, size, ',');
-            std::getline(ss, msg, '*');
-
-            msg_received.data = msg;
-
-            underwaterComPublisher_.publish(msg_received);
+            if(new_packet && ConfirmChecksum(buffer))
+            {
+                readerQueue.push_back(buffer);
+            }
         }
     }
 
     void ProviderUnderwaterComNode::Set_Sensor(std::string &role, uint8_t channel)
     {
-        char role_[2];
-
         ROS_ASSERT_MSG(role == "master" || role == "slave", "Set the role as 'master' or 'slave'. Error in config");
 
         if(role == "master")
         {
-            role_[0] = ROLE_MASTER;
+            role_ = ROLE_MASTER;
         }
         else
         {
-            role_[0] = ROLE_SLAVE;
+            role_ = ROLE_SLAVE;
         }
 
         uint8_t i = 0;
@@ -348,28 +389,29 @@ namespace provider_underwater_com
             init_error_ = false;
             Verify_Version();   
             Get_Payload_Load();
-            Set_Configuration(role_[0], channel);
+            Set_Configuration(role_, channel);
             Flush_Queue();
             ++i;
         }
 
         if(i == 3)
         {
-            ROS_ERROR("Problem with the init. Node shutting down.");
+            ROS_ERROR_STREAM("Problem with the init. Node shutting down.");
             ros::shutdown();
         }
+        ROS_INFO_STREAM("Initialisation completed");
     }
 
     void ProviderUnderwaterComNode::Verify_Version()
     {
         std::string major_version = "";
+        char buffer[BUFFER_SIZE];
         
         Queue_Packet(std::string(1, CMD_GET_VERSION));
+        Transmit_Packet(true);
+        Read_for_Packet(buffer); // TODO cmd and checksum check
 
-        std::unique_lock<std::mutex> mlock(response_mutex);
-        response_cond.wait(mlock);
-
-        std::stringstream ss(response_str);
+        std::stringstream ss(buffer);
         std::getline(ss, major_version, ',');
         std::getline(ss, major_version, ',');
 
@@ -383,13 +425,13 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Get_Payload_Load()
     {
         std::string payload = "";
+        char buffer[BUFFER_SIZE];
 
         Queue_Packet(std::string(1, CMD_GET_PAYLOAD_SIZE));
+        Transmit_Packet(true);
+        Read_for_Packet(buffer); // TODO cmd and checksum check
 
-        std::unique_lock<std::mutex> mlock(response_mutex);
-        response_cond.wait(mlock);
-
-        std::stringstream ss(response_str);
+        std::stringstream ss(buffer);
         std::getline(ss, payload, ',');
         std::getline(ss, payload, '*');
 
@@ -408,17 +450,16 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Set_Configuration(const char &role, uint8_t channel)
     {
         std::string acknowledge;
-        char buffer[2];
+        char buffer[BUFFER_SIZE];
 
         sprintf(buffer, "%d", channel);
         std::string packet = "," + std::string(1, role) + "," + buffer;
 
         Queue_Packet(std::string(1, CMD_SET_SETTINGS), packet);
-        
-        std::unique_lock<std::mutex> mlock(response_mutex);
-        response_cond.wait(mlock);
+        Transmit_Packet(true);
+        Read_for_Packet(buffer); // TODO cmd and checksum check
 
-        std::stringstream ss(response_str);
+        std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
@@ -432,13 +473,13 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Flush_Queue()
     {
         std::string acknowledge;
+        char buffer[BUFFER_SIZE];
 
         Queue_Packet(std::string(1, CMD_FLUSH));
+        Transmit_Packet(true);
+        Read_for_Packet(buffer); // TODO cmd and checksum check
 
-        std::unique_lock<std::mutex> mlock(response_mutex);
-        response_cond.wait(mlock);
-
-        std::stringstream ss(response_str);
+        std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 

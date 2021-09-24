@@ -102,6 +102,7 @@ class ProviderUnderwaterComNode
         uint8_t channel_;        
         uint8_t payload_;
         bool init_error_ = true;
+        bool resend_ = true;
 
         SharedQueue<std::string> writerQueue;
         SharedQueue<std::string> readerQueue;

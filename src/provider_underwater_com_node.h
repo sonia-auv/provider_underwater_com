@@ -27,6 +27,7 @@
 #define PROVIDER_UNDERWATER_COM_NODE
 
 #include <ros/ros.h>
+#include <stdlib.h>
 #include <string>
 #include <std_msgs/String.h>
 #include <fstream>
@@ -78,7 +79,7 @@ class ProviderUnderwaterComNode
         void Export_To_ROS(std::string buffer);
         void Read_for_Packet_Slave();
 
-        void Set_Sensor(std::string &role, uint8_t channel = 4);
+        void Set_Sensor(uint8_t channel = 4);
         void Verify_Version();
         void Get_Payload_Load();
         void Set_Configuration(const char &role, uint8_t channel);

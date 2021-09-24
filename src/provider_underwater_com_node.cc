@@ -34,14 +34,26 @@ namespace provider_underwater_com
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
-        serialConnection_.flush();
+        //serialConnection_.flush();
 
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
         
-        std::string role_sensor = configuration_.getRole();
-        Set_Sensor(role_sensor, std::stoi(configuration_.getChannel()));
+        char *auv;
+        
+        auv = getenv("AUV");
+
+        if(strcmp(auv, "AUV7") == 0)
+        {
+            role_ = ROLE_SLAVE;
+        }
+        else
+        {
+            role_ = ROLE_MASTER;
+        }
+
+        Set_Sensor(std::stoi(configuration_.getChannel()));
 
         if(role_ == ROLE_SLAVE)
         {
@@ -371,19 +383,8 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Set_Sensor(std::string &role, uint8_t channel)
+    void ProviderUnderwaterComNode::Set_Sensor(uint8_t channel)
     {
-        ROS_ASSERT_MSG(role == "master" || role == "slave", "Set the role as 'master' or 'slave'. Error in config");
-
-        if(role == "master")
-        {
-            role_ = ROLE_MASTER;
-        }
-        else
-        {
-            role_ = ROLE_SLAVE;
-        }
-
         uint8_t i = 0;
         
         while(i < 3 && init_error_ == true)

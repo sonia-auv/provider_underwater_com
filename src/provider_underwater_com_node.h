@@ -102,6 +102,7 @@ class ProviderUnderwaterComNode
         char role_;
         uint8_t channel_;        
         uint8_t payload_;
+        bool init_completed_ = true;
         bool init_error_ = true;
         bool resend_ = true;
 

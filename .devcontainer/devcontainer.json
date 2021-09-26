@@ -20,7 +20,7 @@
 		"seccomp=unconfined",
 		"--rm",
 		"--privileged",
-		"--env", "AUV=AUV7",
+		"--env", "AUV=AUV8",
 		"--network",
 		"host"
 	],

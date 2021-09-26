@@ -75,11 +75,13 @@ namespace provider_underwater_com
     {
         ros::Rate r(1); // 1 Hz
 
-        while(ros::ok())
+        while(ros::ok() && init_completed_ == true)
         {
             ros::spinOnce();
             r.sleep();
         }
+
+        ros::shutdown();
     }
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
@@ -400,9 +402,13 @@ namespace provider_underwater_com
         if(i == 3)
         {
             ROS_ERROR_STREAM("Problem with the init. Node shutting down.");
-            ros::shutdown();
+            init_completed_ = false;
         }
-        ROS_INFO_STREAM("Initialisation completed");
+        else
+        {
+            init_completed_ = true;
+            ROS_INFO_STREAM("Initialisation completed");
+        }
     }
 
     void ProviderUnderwaterComNode::Verify_Version()
@@ -418,9 +424,9 @@ namespace provider_underwater_com
         std::getline(ss, major_version, ',');
         std::getline(ss, major_version, ',');
 
-        if(major_version != "1")
+        if(major_version != "1" && ConfirmChecksum(buffer))
         {
-            ROS_ERROR("Major Version isn't 1. Restarting init");
+            ROS_ERROR_STREAM("Major Version isn't 1. Restarting init");
             init_error_ = true;
         }
     }
@@ -432,20 +438,20 @@ namespace provider_underwater_com
 
         Queue_Packet(std::string(1, CMD_GET_PAYLOAD_SIZE));
         Transmit_Packet(true);
-        Read_for_Packet(buffer); // TODO cmd and checksum check
+        Read_for_Packet(buffer); // TODO cmd check
 
         std::stringstream ss(buffer);
         std::getline(ss, payload, ',');
         std::getline(ss, payload, '*');
 
-        if(payload >= "0" || payload <= "9")
+        if((payload >= "0" || payload <= "9") && ConfirmChecksum(buffer))
         {
             payload_ = std::stoi(payload);
-            ROS_DEBUG("Payload set");
+            ROS_DEBUG_STREAM("Payload set");
         }
         else
         {
-            ROS_ERROR("Payload isn't a integer. Restarting init");
+            ROS_ERROR_STREAM("Payload isn't a integer. Restarting init");
             init_error_ = true;
         }
     }
@@ -460,15 +466,15 @@ namespace provider_underwater_com
 
         Queue_Packet(std::string(1, CMD_SET_SETTINGS), packet);
         Transmit_Packet(true);
-        Read_for_Packet(buffer); // TODO cmd and checksum check
+        Read_for_Packet(buffer); // TODO cmd check
 
         std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
+        if(acknowledge == std::string(1, NAK) && ConfirmChecksum(buffer))
         {
-            ROS_ERROR("Could not set the configuration. Restarting init");
+            ROS_ERROR_STREAM("Could not set the configuration. Restarting init");
             init_error_ = true;
         }
     }
@@ -486,9 +492,9 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
+        if(acknowledge == std::string(1, NAK) && ConfirmChecksum(buffer))
         {
-            ROS_ERROR("Couldn't flush the queue. Restarting init");
+            ROS_ERROR_STREAM("Couldn't flush the queue. Restarting init");
             init_error_ = true;
         }
     }

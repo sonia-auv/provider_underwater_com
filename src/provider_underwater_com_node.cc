@@ -424,7 +424,7 @@ namespace provider_underwater_com
         std::getline(ss, major_version, ',');
         std::getline(ss, major_version, ',');
 
-        if(major_version != "1" && ConfirmChecksum(buffer))
+        if(major_version != "1" && !ConfirmChecksum(buffer))
         {
             ROS_ERROR_STREAM("Major Version isn't 1. Restarting init");
             init_error_ = true;
@@ -472,7 +472,7 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK) && ConfirmChecksum(buffer))
+        if(acknowledge == std::string(1, NAK) && !ConfirmChecksum(buffer))
         {
             ROS_ERROR_STREAM("Could not set the configuration. Restarting init");
             init_error_ = true;
@@ -492,7 +492,7 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK) && ConfirmChecksum(buffer))
+        if(acknowledge == std::string(1, NAK) && !ConfirmChecksum(buffer))
         {
             ROS_ERROR_STREAM("Couldn't flush the queue. Restarting init");
             init_error_ = true;

@@ -1,6 +1,6 @@
 #********** Driver Parameters ************
 
-/provider_underwater_com/connection/tty_port: "/dev/ttyACM0"
+/provider_underwater_com/connection/tty_port: "/dev/ttyUSB0"
 
 /provider_underwater_com/settings/role : "master"
 

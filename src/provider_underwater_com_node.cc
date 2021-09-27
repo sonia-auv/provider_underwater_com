@@ -249,6 +249,7 @@ namespace provider_underwater_com
 
             now = clock();
         }
+        ROS_WARN_STREAM("No response after 10 secs.");
         return false;
     }
 
@@ -269,32 +270,35 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Manage_Packet_Master()
     {
         char buffer[BUFFER_SIZE];
-        bool resend = true;
         bool new_packet;
         
-        if(resend) Transmit_Packet(false);
-
-        resend = true;
+        if(resend_) Transmit_Packet(false);
 
         new_packet = Read_for_Packet(buffer);
 
-        if(ConfirmChecksum(buffer) && new_packet)
+        if(new_packet)
         {
-            if(buffer[2] == RESP_GOT_PACKET)
+            if(ConfirmChecksum(buffer))
             {
-                Export_To_ROS(buffer);
-                writerQueue.pop_front();
-            }
-            else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
-            {
-                resend = false;
-            }
-            else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
-            {
-                ROS_ERROR_STREAM("Resquest not made properly");
-                writerQueue.pop_front();
+                if(buffer[2] == RESP_GOT_PACKET)
+                {
+                    Export_To_ROS(buffer);
+                    writerQueue.pop_front();
+                    resend_ = true;
+                }
+                else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
+                {
+                    resend_ = false;
+                }
+                else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
+                {
+                    ROS_ERROR_STREAM("Resquest not made properly");
+                    writerQueue.pop_front();
+                    resend_ = true;
+                }
             }
         }
+
     }
 
     void ProviderUnderwaterComNode::Manage_Packet_Slave()
@@ -319,17 +323,15 @@ namespace provider_underwater_com
 
                 writerQueue_mutex.lock();
 
-                while(!writerQueue.empty() && role_ == ROLE_MASTER)
+                if(!writerQueue.empty() && role_ == ROLE_MASTER)
                 {
-                    ROS_INFO_STREAM("I am sending");
                     Manage_Packet_Master();
                 }
                 
                 writerQueue_mutex.unlock();
 
-                while(!readerQueue.empty() && role_ == ROLE_SLAVE)
+                if(!readerQueue.empty() && role_ == ROLE_SLAVE)
                 {
-                    ROS_INFO_STREAM("I am listening");
                     Manage_Packet_Slave();
                 }
             }

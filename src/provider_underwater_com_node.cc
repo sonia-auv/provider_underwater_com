@@ -127,7 +127,7 @@ namespace provider_underwater_com
                 std::getline(ss, role, ',');
                 std::getline(ss, channel, '*');
 
-                tmp = role_;
+                tmp = role.at(0);
                 res.role = (uint8_t)tmp;
                 res.channel = std::stoi(channel);
                 break;
@@ -145,8 +145,8 @@ namespace provider_underwater_com
                 std::getline(ss, packet_loss_count, ',');
                 std::getline(ss, bit_error_rate, '*');
 
-                tmp = link_up;
-                res.link = (uint8_t)link_up;
+                tmp = link_up.at(0);
+                res.link = (uint8_t)tmp;
                 res.packet_count = std::stoi(packet_count);
                 res.packet_count_loss = std::stoi(packet_loss_count);
                 res.bit_error_rate = std::stof(bit_error_rate);

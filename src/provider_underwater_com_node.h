@@ -41,11 +41,8 @@
 #include "Configuration.h"
 #include "drivers/serial.h"
 #include <sonia_common/ModemM64_definitions.h>
-//#include "ModemM64_definitions.h"
 #include <sonia_common/ModemPacket.h>
 #include "sharedQueue.h"
-
-#define MALFORMED '!'
 
 namespace provider_underwater_com {
 

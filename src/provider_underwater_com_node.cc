@@ -151,6 +151,10 @@ namespace provider_underwater_com
                 res.packet_count_loss = std::stoi(packet_loss_count);
                 res.bit_error_rate = std::stof(bit_error_rate);
             }
+            case CMD_FLUSH:
+            {
+                ROS_INFO_STREAM("Buffer of sensor flushed");
+            }
             default:
             {
                 ROS_ERROR("CMD received isn't working with the service.");

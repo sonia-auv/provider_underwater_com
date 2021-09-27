@@ -103,6 +103,7 @@ namespace provider_underwater_com
         writerQueue_mutex.unlock();
 
         char cmd_rec = buffer[2];
+        char tmp;
         std::stringstream ss(buffer);
 
         switch (cmd_rec)
@@ -126,7 +127,8 @@ namespace provider_underwater_com
                 std::getline(ss, role, ',');
                 std::getline(ss, channel, '*');
 
-                res.role = std::stoi(role);
+                tmp = role_;
+                res.role = (uint8_t)tmp;
                 res.channel = std::stoi(channel);
                 break;
             }
@@ -143,7 +145,8 @@ namespace provider_underwater_com
                 std::getline(ss, packet_loss_count, ',');
                 std::getline(ss, bit_error_rate, '*');
 
-                res.link = std::stoi(link_up);
+                tmp = link_up;
+                res.link = (uint8_t)link_up;
                 res.packet_count = std::stoi(packet_count);
                 res.packet_count_loss = std::stoi(packet_loss_count);
                 res.bit_error_rate = std::stof(bit_error_rate);

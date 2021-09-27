@@ -38,10 +38,8 @@ namespace provider_underwater_com
 
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
-        underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
         
-        char *auv;
-        
+        char *auv;        
         auv = getenv("AUV");
 
         if(strcmp(auv, "AUV7") == 0)
@@ -60,6 +58,8 @@ namespace provider_underwater_com
             read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
         }
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
+
+        underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
     }
 
     //Node Destructor

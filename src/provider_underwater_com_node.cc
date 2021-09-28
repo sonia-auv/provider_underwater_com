@@ -101,70 +101,73 @@ namespace provider_underwater_com
         Read_for_Packet(buffer);
 
         writerQueue_mutex.unlock();
-
-        char cmd_rec = buffer[2];
-        char tmp;
-        std::stringstream ss(buffer);
-
-        switch (cmd_rec)
-        {
-            case CMD_GET_BUFFER_LENGTH:
-            {    
-                std::string queue_length;
-                
-                std::getline(ss, queue_length, ',');
-                std::getline(ss, queue_length, '*');
-
-                res.queue_length = std::stoi(queue_length);
-                break;
-            }
-            case CMD_GET_SETTINGS:
-            {
-                std::string role;
-                std::string channel;
-
-                std::getline(ss, role, ',');
-                std::getline(ss, role, ',');
-                std::getline(ss, channel, '*');
-
-                tmp = role.at(0);
-                res.role = (uint8_t)tmp;
-                res.channel = std::stoi(channel);
-                break;
-            }
-            case CMD_GET_DIAGNOSTIC:
-            {
-                std::string link_up;
-                std::string packet_count;
-                std::string packet_loss_count;
-                std::string bit_error_rate;
-
-                std::getline(ss, link_up, ',');
-                std::getline(ss, link_up, ',');
-                std::getline(ss, packet_count, ',');
-                std::getline(ss, packet_loss_count, ',');
-                std::getline(ss, bit_error_rate, '*');
-
-                tmp = link_up.at(0);
-                res.link = (uint8_t)tmp;
-                res.packet_count = std::stoi(packet_count);
-                res.packet_count_loss = std::stoi(packet_loss_count);
-                res.bit_error_rate = std::stof(bit_error_rate);
-                break;
-            }
-            case CMD_FLUSH:
-            {
-                ROS_INFO_STREAM("Buffer of sensor flushed");
-                break;
-            }
-            default:
-            {
-                ROS_ERROR("CMD received isn't working with the service.");
-                return false;
-            }
-        }
         
-        return true;
+        if(ConfirmChecksum(buffer))
+        {
+            char cmd_rec = buffer[2];
+            char tmp;
+            std::stringstream ss(buffer);
+
+            switch (cmd_rec)
+            {
+                case CMD_GET_BUFFER_LENGTH:
+                {    
+                    std::string queue_length;
+                    
+                    std::getline(ss, queue_length, ',');
+                    std::getline(ss, queue_length, '*');
+
+                    res.queue_length = std::stoi(queue_length);
+                    break;
+                }
+                case CMD_GET_SETTINGS:
+                {
+                    std::string role;
+                    std::string channel;
+
+                    std::getline(ss, role, ',');
+                    std::getline(ss, role, ',');
+                    std::getline(ss, channel, '*');
+
+                    tmp = role.at(0);
+                    res.role = (uint8_t)tmp;
+                    res.channel = std::stoi(channel);
+                    break;
+                }
+                case CMD_GET_DIAGNOSTIC:
+                {
+                    std::string link_up;
+                    std::string packet_count;
+                    std::string packet_loss_count;
+                    std::string bit_error_rate;
+
+                    std::getline(ss, link_up, ',');
+                    std::getline(ss, link_up, ',');
+                    std::getline(ss, packet_count, ',');
+                    std::getline(ss, packet_loss_count, ',');
+                    std::getline(ss, bit_error_rate, '*');
+
+                    tmp = link_up.at(0);
+                    res.link = (uint8_t)tmp;
+                    res.packet_count = std::stoi(packet_count);
+                    res.packet_count_loss = std::stoi(packet_loss_count);
+                    res.bit_error_rate = std::stof(bit_error_rate);
+                    break;
+                }
+                case CMD_FLUSH:
+                {
+                    ROS_INFO_STREAM("Buffer of sensor flushed");
+                    break;
+                }
+                default:
+                {
+                    ROS_ERROR("CMD received isn't working with the service.");
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     uint8_t ProviderUnderwaterComNode::CalculateChecksum(const std::string &sentence, uint8_t length)

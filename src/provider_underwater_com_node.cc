@@ -228,11 +228,11 @@ namespace provider_underwater_com
             AppendChecksum(sentence);
             writerQueue.push_back(sentence);
 
-            ROS_DEBUG_STREAM("Packet sent to Modem");
+            ROS_INFO_STREAM("Packet sent to Modem");
         }
         else
         {
-            ROS_INFO_STREAM("CMD unknow. Can't queue packet");
+            ROS_WARN_STREAM("CMD unknow. Can't queue packet");
         }
     }
 

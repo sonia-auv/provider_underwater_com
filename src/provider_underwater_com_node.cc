@@ -386,7 +386,7 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {
-            ros::Duration(0.1).sleep();
+            ros::Duration(2).sleep();
             
             new_packet = Read_for_Packet(buffer);
 

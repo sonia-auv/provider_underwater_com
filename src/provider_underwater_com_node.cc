@@ -350,7 +350,7 @@ namespace provider_underwater_com
 
             //new_packet = Read_for_Packet(buffer);
 
-            if(!readerQueue.empty()))
+            if(!readerQueue.empty())
             {
                 std::string tmp = readerQueue.get_n_pop_front();
 
@@ -358,7 +358,7 @@ namespace provider_underwater_com
                 {
                     buffer[i] = tmp.at(i);
                 }
-                
+
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
                     Export_To_ROS(buffer);

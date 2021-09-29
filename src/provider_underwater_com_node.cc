@@ -342,13 +342,12 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Manage_Packet_Master()
     {
         char buffer[BUFFER_SIZE];
-        bool new_packet;
         
         if(!writerQueue.empty())
         {
             if(resend_) Transmit_Packet(false);
 
-            //new_packet = Read_for_Packet(buffer);
+            resend_ = false;
 
             if(!readerQueue.empty())
             {
@@ -362,16 +361,6 @@ namespace provider_underwater_com
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
                     Export_To_ROS(buffer);
-                    writerQueue.pop_front();
-                    resend_ = true;
-                }
-                else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
-                {
-                    resend_ = false;
-                }
-                else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
-                {
-                    ROS_ERROR_STREAM("Resquest not made properly");
                     writerQueue.pop_front();
                     resend_ = true;
                 }

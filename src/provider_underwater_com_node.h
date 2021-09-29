@@ -97,6 +97,7 @@ class ProviderUnderwaterComNode
         std::thread read_for_packet_slave;
 
         std::mutex writerQueue_mutex;
+        std::mutex readerQueue_mutex;
 
         char role_;
         uint8_t channel_;        

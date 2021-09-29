@@ -93,7 +93,7 @@ namespace provider_underwater_com
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
     {   
         char buffer[BUFFER_SIZE];
-        
+
         Send_CMD_To_Sensor(buffer, (char)req.cmd);
         
         if(ConfirmChecksum(buffer))
@@ -276,23 +276,27 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd)
     {
         writerQueue_mutex.lock();
+        readerQueue_mutex.lock();
 
         Queue_Packet(std::string(1, cmd));
         Transmit_Packet(true);
         Read_for_Packet(buffer);
         
         writerQueue_mutex.unlock();
+        readerQueue_mutex.unlock();
     }
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet)
     {
         writerQueue_mutex.lock();
+        readerQueue_mutex.lock();
 
         Queue_Packet(std::string(1, cmd), packet);
         Transmit_Packet(true);
         Read_for_Packet(buffer);
         
         writerQueue_mutex.unlock();
+        readerQueue_mutex.unlock();
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)
@@ -405,6 +409,8 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {          
+            readerQueue_mutex.lock();
+
             new_packet = Read_for_Packet(buffer);
 
             if(new_packet && ConfirmChecksum(buffer))
@@ -422,6 +428,7 @@ namespace provider_underwater_com
                     ROS_ERROR_STREAM("Resquest not made properly");
                 }
             }
+            readerQueue_mutex.unlock();
             r.sleep();
         }
     }

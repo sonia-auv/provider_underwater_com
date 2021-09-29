@@ -150,12 +150,12 @@ namespace provider_underwater_com
                 }
                 case CMD_FLUSH:
                 {
-                    ROS_INFO_STREAM("Buffer of sensor flushed");
+                    ROS_DEBUG_STREAM("Flushed queue");
                     break;
                 }
                 default:
                 {
-                    ROS_ERROR("CMD received isn't working with the service.");
+                    ROS_ERROR_STREAM("CMD received isn't working with the service. CMD received is %c", cmd_rec);
                     return false;
                 }
             }
@@ -199,7 +199,7 @@ namespace provider_underwater_com
         }
         catch(...)
         {
-            ROS_INFO_STREAM("Underwater Com: bad checksum");
+            ROS_WARN_STREAM("Underwater Com: bad checksum");
             return false;
         }
     }
@@ -222,7 +222,7 @@ namespace provider_underwater_com
             AppendChecksum(sentence);
             writerQueue.push_back(sentence);
 
-            ROS_INFO_STREAM("Packet sent to Modem");
+            ROS_DEBUG_STREAM("Packet sent to Modem");
         }
         else
         {
@@ -269,7 +269,7 @@ namespace provider_underwater_com
             ++cycles;
             r.sleep();
         }
-        ROS_WARN_STREAM("No response after 10 secs.");
+        ROS_DEBUG_STREAM("No response after 10 secs.");
         return false;
     }
 

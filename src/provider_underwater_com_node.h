@@ -98,6 +98,9 @@ class ProviderUnderwaterComNode
 
         std::mutex writerQueue_mutex;
         std::mutex readerQueue_mutex;
+        std::mutex parseQueue_mutex;
+
+        std::condition_variable parseQueue_cond;
 
         char role_;
         uint8_t channel_;        
@@ -108,6 +111,7 @@ class ProviderUnderwaterComNode
 
         SharedQueue<std::string> writerQueue;
         SharedQueue<std::string> readerQueue;
+        SharedQueue<std::string> parseQueue;
 
         ros::Duration sleeptime;
 

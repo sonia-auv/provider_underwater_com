@@ -39,6 +39,8 @@ namespace provider_underwater_com
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
         
+        read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
+
         char *auv;        
         auv = getenv("AUV");
 
@@ -53,10 +55,10 @@ namespace provider_underwater_com
 
         Set_Sensor(std::stoi(configuration_.getChannel()));
 
-        if(role_ == ROLE_SLAVE)
+        /*if(role_ == ROLE_SLAVE)
         {
             read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
-        }
+        }*/
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
 
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
@@ -250,7 +252,7 @@ namespace provider_underwater_com
         ros::Rate r(2); // 2 Hz
         uint8_t cycles = 0;
 
-        while(cycles <= timeout_)
+        while(cycles < timeout_)
         {
             serialConnection_.readOnce(buffer, 0);
 
@@ -276,27 +278,51 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd)
     {
         writerQueue_mutex.lock();
-        readerQueue_mutex.lock();
+        //readerQueue_mutex.lock();
 
         Queue_Packet(std::string(1, cmd));
         Transmit_Packet(true);
-        Read_for_Packet(buffer);
-        
+
+        std::unique_lock<std::mutex> mlock(parseQueue_mutex);
+        parseQueue_cond.wait(mlock);
+
+        if(!parseQueue.empty())
+        {        
+            std::string tmp = parseQueue.get_n_pop_front();
+
+            for(uint8_t i = 0; i < tmp.size(); ++i)
+            {
+                buffer[i] = tmp.at(i);
+            }
+        }
+
         writerQueue_mutex.unlock();
-        readerQueue_mutex.unlock();
+        //readerQueue_mutex.unlock();
     }
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet)
     {
         writerQueue_mutex.lock();
-        readerQueue_mutex.lock();
+        //readerQueue_mutex.lock();
 
         Queue_Packet(std::string(1, cmd), packet);
         Transmit_Packet(true);
-        Read_for_Packet(buffer);
+        
+        std::unique_lock<std::mutex> mlock(parseQueue_mutex);
+        parseQueue_cond.wait(mlock);
+
+        if(!parseQueue.empty())
+        {        
+            std::string tmp = parseQueue.get_n_pop_front();
+
+            for(uint8_t i = 0; i < tmp.size(); ++i)
+            {
+                buffer[i] = tmp.at(i);
+            }
+        }
         
         writerQueue_mutex.unlock();
-        readerQueue_mutex.unlock();
+        //readerQueue_mutex.unlock();
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)
@@ -322,10 +348,17 @@ namespace provider_underwater_com
         {
             if(resend_) Transmit_Packet(false);
 
-            new_packet = Read_for_Packet(buffer);
+            //new_packet = Read_for_Packet(buffer);
 
-            if(new_packet && ConfirmChecksum(buffer))
+            if(!readerQueue.empty()))
             {
+                std::string tmp = readerQueue.get_n_pop_front();
+
+                for(uint8_t i = 0; i < tmp.size(); ++i)
+                {
+                    buffer[i] = tmp.at(i);
+                }
+                
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
                     Export_To_ROS(buffer);
@@ -409,7 +442,7 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {          
-            readerQueue_mutex.lock();
+            //readerQueue_mutex.lock();
 
             new_packet = Read_for_Packet(buffer);
 
@@ -426,9 +459,17 @@ namespace provider_underwater_com
                 else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
                 {
                     ROS_ERROR_STREAM("Resquest not made properly");
+                    std::unique_lock<std::mutex> mlock(parseQueue_mutex);
+                    parseQueue_cond.notify_one();
+                }
+                else
+                {
+                    std::unique_lock<std::mutex> mlock(parseQueue_mutex);
+                    parseQueue.push_back(buffer);
+                    parseQueue_cond.notify_one();
                 }
             }
-            readerQueue_mutex.unlock();
+            //readerQueue_mutex.unlock();
             r.sleep();
         }
     }

@@ -182,7 +182,7 @@ namespace provider_underwater_com
         char buffer[2];
 
         uint8_t checksum = CalculateChecksum(sentence, sentence.size());
-        sprintf(buffer, "%x", checksum);
+        sprintf(buffer, "%02x", checksum);
 
         ss << sentence << std::string(1, CHECKSUM) << buffer << std::string(1, EOP);
         sentence = ss.str();
@@ -315,7 +315,7 @@ namespace provider_underwater_com
         bool new_packet;
         
         if(!writerQueue.empty())
-            {
+        {
             if(resend_) Transmit_Packet(false);
 
             new_packet = Read_for_Packet(buffer);

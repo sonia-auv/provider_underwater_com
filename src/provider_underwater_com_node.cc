@@ -94,13 +94,7 @@ namespace provider_underwater_com
     {   
         char buffer[BUFFER_SIZE];
         
-        writerQueue_mutex.lock();
-
-        Queue_Packet(std::string(1, req.cmd));
-        Transmit_Packet(true);
-        Read_for_Packet(buffer);
-
-        writerQueue_mutex.unlock();
+        Send_CMD_To_Sensor(buffer, (char)req.cmd);
         
         if(ConfirmChecksum(buffer))
         {
@@ -252,11 +246,11 @@ namespace provider_underwater_com
     }
 
     bool ProviderUnderwaterComNode::Read_for_Packet(char *buffer)
-    {
-        clock_t start = clock();
-        clock_t now = clock();
-        
-        while((now-start) / CLOCKS_PER_SEC <= timeout_)
+    {        
+        ros::Rate r(2); // 2 Hz
+        uint8_t cycles = 0;
+
+        while(cycles <= timeout_)
         {
             serialConnection_.readOnce(buffer, 0);
 
@@ -272,11 +266,33 @@ namespace provider_underwater_com
                 buffer[i] = 0;
                 return true;
             }
-
-            now = clock();
+            ++cycles;
+            r.sleep();
         }
         ROS_WARN_STREAM("No response after 10 secs.");
         return false;
+    }
+
+    void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd)
+    {
+        writerQueue_mutex.lock();
+
+        Queue_Packet(std::string(1, cmd));
+        Transmit_Packet(true);
+        Read_for_Packet(buffer);
+        
+        writerQueue_mutex.unlock();
+    }
+
+    void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet)
+    {
+        writerQueue_mutex.lock();
+
+        Queue_Packet(std::string(1, cmd), packet);
+        Transmit_Packet(true);
+        Read_for_Packet(buffer);
+        
+        writerQueue_mutex.unlock();
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)
@@ -298,13 +314,13 @@ namespace provider_underwater_com
         char buffer[BUFFER_SIZE];
         bool new_packet;
         
-        if(resend_) Transmit_Packet(false);
+        if(!writerQueue.empty())
+            {
+            if(resend_) Transmit_Packet(false);
 
-        new_packet = Read_for_Packet(buffer);
+            new_packet = Read_for_Packet(buffer);
 
-        if(new_packet)
-        {
-            if(ConfirmChecksum(buffer))
+            if(new_packet && ConfirmChecksum(buffer))
             {
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
@@ -324,42 +340,44 @@ namespace provider_underwater_com
                 }
             }
         }
-
     }
 
     void ProviderUnderwaterComNode::Manage_Packet_Slave()
     {
-        Export_To_ROS(readerQueue.get_n_pop_front());
-
-        while(writerQueue.empty())
+        if(!readerQueue.empty())
         {
-            ros::Duration(1).sleep();
-        }
+            Export_To_ROS(readerQueue.get_n_pop_front());
 
-        Transmit_Packet(true);
+            while(writerQueue.empty())
+            {
+                ros::Duration(1).sleep();
+            }
+
+            Transmit_Packet(true);
+        }
     }
 
     void ProviderUnderwaterComNode::Manage_Packet()
     {
+        ros::Rate r(1); // 1 Hz
+        
         ROS_INFO_STREAM("Manage thread started");
 
             while(!ros::isShuttingDown())
             {
-                ros::Duration(1).sleep();
-
                 writerQueue_mutex.lock();
 
-                if(!writerQueue.empty() && role_ == ROLE_MASTER)
+                if(role_ == ROLE_MASTER)
                 {
                     Manage_Packet_Master();
                 }
-                
-                writerQueue_mutex.unlock();
-
-                if(!readerQueue.empty() && role_ == ROLE_SLAVE)
+                else if(role_ == ROLE_SLAVE)
                 {
                     Manage_Packet_Slave();
                 }
+
+                writerQueue_mutex.unlock();
+                r.sleep();
             }
     }
 
@@ -381,19 +399,30 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Read_for_Packet_Slave()
     {
+        ros::Rate r(1); // 1 Hz
         char buffer[BUFFER_SIZE];
         bool new_packet = false;
 
         while(!ros::isShuttingDown())
-        {
-            ros::Duration(1).sleep();
-            
+        {          
             new_packet = Read_for_Packet(buffer);
 
             if(new_packet && ConfirmChecksum(buffer))
             {
-                readerQueue.push_back(buffer);
+                if(buffer[2] == RESP_GOT_PACKET)
+                {
+                    readerQueue.push_back(buffer);
+                }
+                else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
+                {
+                    ROS_INFO_STREAM("Packet queue");
+                }
+                else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
+                {
+                    ROS_ERROR_STREAM("Resquest not made properly");
+                }
             }
+            r.sleep();
         }
     }
 
@@ -428,9 +457,7 @@ namespace provider_underwater_com
         std::string major_version = "";
         char buffer[BUFFER_SIZE];
         
-        Queue_Packet(std::string(1, CMD_GET_VERSION));
-        Transmit_Packet(true);
-        Read_for_Packet(buffer); // TODO cmd and checksum check
+        Send_CMD_To_Sensor(buffer, CMD_GET_VERSION);
 
         std::stringstream ss(buffer);
         std::getline(ss, major_version, ',');
@@ -448,9 +475,7 @@ namespace provider_underwater_com
         std::string payload = "";
         char buffer[BUFFER_SIZE];
 
-        Queue_Packet(std::string(1, CMD_GET_PAYLOAD_SIZE));
-        Transmit_Packet(true);
-        Read_for_Packet(buffer); // TODO cmd check
+        Send_CMD_To_Sensor(buffer, CMD_GET_PAYLOAD_SIZE);
 
         std::stringstream ss(buffer);
         std::getline(ss, payload, ',');
@@ -476,9 +501,7 @@ namespace provider_underwater_com
         sprintf(buffer, "%d", channel);
         std::string packet = "," + std::string(1, role) + "," + buffer;
 
-        Queue_Packet(std::string(1, CMD_SET_SETTINGS), packet);
-        Transmit_Packet(true);
-        Read_for_Packet(buffer); // TODO cmd check
+        Send_CMD_To_Sensor(buffer, CMD_SET_SETTINGS, packet);
 
         std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');
@@ -496,9 +519,7 @@ namespace provider_underwater_com
         std::string acknowledge;
         char buffer[BUFFER_SIZE];
 
-        Queue_Packet(std::string(1, CMD_FLUSH));
-        Transmit_Packet(true);
-        Read_for_Packet(buffer); // TODO cmd and checksum check
+        Send_CMD_To_Sensor(buffer, CMD_FLUSH);
 
         std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');

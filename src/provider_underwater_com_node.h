@@ -67,6 +67,8 @@ class ProviderUnderwaterComNode
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
         bool Transmit_Packet(bool pop_packet);
         bool Read_for_Packet(char *buffer);
+        void Send_CMD_To_Sensor(char *buffer, char cmd);
+        void Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet);
         bool Check_CMD(const std::string &cmd);
 
         void Manage_Packet_Master();
@@ -108,7 +110,7 @@ class ProviderUnderwaterComNode
 
         ros::Duration sleeptime;
 
-        float_t timeout_ = 10.0;
+        uint8_t timeout_ = 20; // 20 cycles
 };
 
 }

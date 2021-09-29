@@ -155,7 +155,7 @@ namespace provider_underwater_com
                 }
                 default:
                 {
-                    ROS_ERROR_STREAM("CMD received isn't working with the service. CMD received is %c", cmd_rec);
+                    ROS_ERROR("CMD received isn't working with the service. CMD received is %c", cmd_rec);
                     return false;
                 }
             }

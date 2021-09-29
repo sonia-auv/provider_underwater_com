@@ -277,7 +277,7 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd)
     {
-        writerQueue_mutex.lock();
+        //writerQueue_mutex.lock();
         //readerQueue_mutex.lock();
 
         Queue_Packet(std::string(1, cmd));
@@ -296,13 +296,13 @@ namespace provider_underwater_com
             }
         }
 
-        writerQueue_mutex.unlock();
+        //writerQueue_mutex.unlock();
         //readerQueue_mutex.unlock();
     }
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet)
     {
-        writerQueue_mutex.lock();
+        //writerQueue_mutex.lock();
         //readerQueue_mutex.lock();
 
         Queue_Packet(std::string(1, cmd), packet);
@@ -321,7 +321,7 @@ namespace provider_underwater_com
             }
         }
         
-        writerQueue_mutex.unlock();
+        //writerQueue_mutex.unlock();
         //readerQueue_mutex.unlock();
     }
 
@@ -391,7 +391,7 @@ namespace provider_underwater_com
 
             while(!ros::isShuttingDown())
             {
-                writerQueue_mutex.lock();
+                //writerQueue_mutex.lock();
 
                 if(role_ == ROLE_MASTER)
                 {
@@ -402,7 +402,7 @@ namespace provider_underwater_com
                     Manage_Packet_Slave();
                 }
 
-                writerQueue_mutex.unlock();
+                //writerQueue_mutex.unlock();
                 r.sleep();
             }
     }

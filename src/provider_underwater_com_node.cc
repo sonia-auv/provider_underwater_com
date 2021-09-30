@@ -345,9 +345,7 @@ namespace provider_underwater_com
         
         if(!writerQueue.empty())
         {
-            if(resend_) Transmit_Packet(false);
-
-            resend_ = false;
+            Transmit_Packet(false);
 
             if(!readerQueue.empty())
             {
@@ -362,9 +360,9 @@ namespace provider_underwater_com
                 {
                     Export_To_ROS(buffer);
                     writerQueue.pop_front();
-                    resend_ = true;
                 }
             }
+            ros::Duration(5).sleep();
         }
     }
 

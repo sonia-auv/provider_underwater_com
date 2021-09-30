@@ -362,7 +362,6 @@ namespace provider_underwater_com
                     writerQueue.pop_front();
                 }
             }
-            ros::Duration(5).sleep();
         }
     }
 

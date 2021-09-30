@@ -345,7 +345,9 @@ namespace provider_underwater_com
         
         if(!writerQueue.empty())
         {
-            Transmit_Packet(false);
+            if(send_) Transmit_Packet(false);
+
+            send_ = false;
 
             if(!readerQueue.empty())
             {
@@ -359,8 +361,10 @@ namespace provider_underwater_com
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
                     Export_To_ROS(buffer);
-                    writerQueue.pop_front();
                 }
+
+                writerQueue.pop_front();
+                send_ = true;
             }
         }
     }

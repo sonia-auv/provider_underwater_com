@@ -71,7 +71,7 @@ namespace provider_underwater_com
     //Node Spin
     void ProviderUnderwaterComNode::Spin()
     {
-        ros::Rate r(1); // 1 Hz
+        ros::Rate r(5); // 5 Hz
 
         while(ros::ok() && init_completed_ == true)
         {
@@ -148,11 +148,9 @@ namespace provider_underwater_com
                     if(tmp == LINK_DOWN)
                     {
                         Flush_Queue();
-                        while(!writerQueue.empty())
-                        {
-                            writerQueue.pop_front();
-                        }
-                        ROS_INFO_STREAM("Emptying the write queue");
+                        while(!writerQueue.empty()) writerQueue.pop_front();
+                        while(!readerQueue.empty()) readerQueue.pop_front();
+                        ROS_INFO_STREAM("Emptying the queues");
                     }
 
                     break;
@@ -435,7 +433,7 @@ namespace provider_underwater_com
                 }
                 else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
                 {
-                    ROS_INFO_STREAM("Packet queue");
+                    ROS_DEBUG_STREAM("Packet queue");
                 }
                 else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
                 {

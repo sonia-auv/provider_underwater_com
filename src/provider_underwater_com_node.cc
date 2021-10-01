@@ -55,10 +55,6 @@ namespace provider_underwater_com
 
         Set_Sensor(std::stoi(configuration_.getChannel()));
 
-        /*if(role_ == ROLE_SLAVE)
-        {
-            read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
-        }*/
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
 
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
@@ -148,6 +144,17 @@ namespace provider_underwater_com
                     res.packet_count = std::stoi(packet_count);
                     res.packet_count_loss = std::stoi(packet_loss_count);
                     res.bit_error_rate = std::stof(bit_error_rate);
+
+                    if(tmp == LINK_DOWN)
+                    {
+                        Flush_Queue();
+                        while(!writerQueue.empty())
+                        {
+                            writerQueue.pop_front();
+                        }
+                        ROS_INFO_STREAM("Emptying the write queue");
+                    }
+
                     break;
                 }
                 case CMD_FLUSH:

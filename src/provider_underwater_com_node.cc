@@ -334,6 +334,7 @@ namespace provider_underwater_com
         if(!writerQueue.empty())
         {
             if(send_) Transmit_Packet(false);
+            if(send_) ROS_INFO_STREAM("Packet has been sent. Now waiting for a reply");
 
             send_ = false;
 
@@ -345,12 +346,10 @@ namespace provider_underwater_com
                 {
                     buffer[i] = tmp.at(i);
                 }
-
-                if(buffer[2] == RESP_GOT_PACKET)
-                {
-                    Export_To_ROS(buffer);
-                }
-
+                
+                if(buffer[2] != RESP_GOT_PACKET) ROS_INFO_STREAM("Packet received isn't a response");
+                else Export_To_ROS(buffer);
+                
                 writerQueue.pop_front();
                 send_ = true;
             }
@@ -365,6 +364,7 @@ namespace provider_underwater_com
 
             while(writerQueue.empty())
             {
+                ROS_INFO_STREAM("Waiting for packet to send back");
                 ros::Duration(1).sleep();
             }
 
@@ -420,6 +420,8 @@ namespace provider_underwater_com
 
             if(new_packet && ConfirmChecksum(buffer))
             {
+                ROS_INFO("Cmd received is %c", buffer[2]);
+                
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
                     readerQueue.push_back(buffer);

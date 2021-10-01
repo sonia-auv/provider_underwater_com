@@ -338,10 +338,7 @@ namespace provider_underwater_com
         
         if(!writerQueue.empty())
         {
-            if(send_) Transmit_Packet(false);
-            if(send_) ROS_INFO_STREAM("Packet has been sent. Now waiting for a reply");
-
-            send_ = false;
+            Transmit_Packet(true);
 
             if(!readerQueue.empty())
             {
@@ -354,9 +351,6 @@ namespace provider_underwater_com
                 
                 if(buffer[2] != RESP_GOT_PACKET) ROS_INFO_STREAM("Packet received isn't a response");
                 else Export_To_ROS(buffer);
-                
-                writerQueue.pop_front();
-                send_ = true;
             }
         }
     }
@@ -425,7 +419,7 @@ namespace provider_underwater_com
 
             if(new_packet && ConfirmChecksum(buffer))
             {
-                ROS_INFO("Cmd received is %c", buffer[2]);
+                //ROS_INFO("Cmd received is %c", buffer[2]);
                 
                 if(buffer[2] == RESP_GOT_PACKET)
                 {

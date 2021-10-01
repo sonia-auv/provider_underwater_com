@@ -336,6 +336,8 @@ namespace provider_underwater_com
     {
         char buffer[BUFFER_SIZE];
         
+        ROS_INFO("Write Queue Size : %d", writerQueue.size());
+
         if(!writerQueue.empty())
         {
             Transmit_Packet(true);

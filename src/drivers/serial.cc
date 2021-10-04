@@ -76,7 +76,7 @@ Serial::~Serial()
 
 std::string Serial::receive(size_t count)
 {
-    ROS_DEBUG("provider_imu receive data");
+    ROS_DEBUG("provider_underwater_com receive data");
     char data[1024];
     data[0] = 0;
 
@@ -86,18 +86,18 @@ std::string Serial::receive(size_t count)
 
 void Serial::readOnce(char* data, int offset)
 {
-    ROS_DEBUG("provider_imu receive Once");
+    ROS_DEBUG("provider_underwater_com receive Once");
     read(fd, (data+offset), 1);
 }
 
 void Serial::flush()
 {
-    ROS_DEBUG("provider_imu flush data");
+    ROS_DEBUG("provider_underwater_com flush data");
     tcflush(fd,TCIOFLUSH);
 }
 
 ssize_t Serial::transmit(const std::string data)
 {
-    ROS_DEBUG("provider_imu transmit data");
+    ROS_DEBUG("provider_underwater_com transmit data");
     return write(fd, data.c_str(), data.size());
 }

@@ -27,6 +27,7 @@
 #define PROVIDER_UNDERWATER_COM_NODE
 
 #include <ros/ros.h>
+#include <stdlib.h>
 #include <string>
 #include <std_msgs/String.h>
 #include <fstream>
@@ -40,11 +41,8 @@
 #include "Configuration.h"
 #include "drivers/serial.h"
 #include <sonia_common/ModemM64_definitions.h>
-//#include "ModemM64_definitions.h"
 #include <sonia_common/ModemPacket.h>
 #include "sharedQueue.h"
-
-#define MALFORMED '!'
 
 namespace provider_underwater_com {
 
@@ -69,6 +67,8 @@ class ProviderUnderwaterComNode
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
         bool Transmit_Packet(bool pop_packet);
         bool Read_for_Packet(char *buffer);
+        void Send_CMD_To_Sensor(char *buffer, char cmd);
+        void Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet);
         bool Check_CMD(const std::string &cmd);
 
         void Manage_Packet_Master();
@@ -78,7 +78,7 @@ class ProviderUnderwaterComNode
         void Export_To_ROS(std::string buffer);
         void Read_for_Packet_Slave();
 
-        void Set_Sensor(std::string &role, uint8_t channel = 4);
+        void Set_Sensor(uint8_t channel = 4);
         void Verify_Version();
         void Get_Payload_Load();
         void Set_Configuration(const char &role, uint8_t channel);
@@ -97,19 +97,25 @@ class ProviderUnderwaterComNode
         std::thread read_for_packet_slave;
 
         std::mutex writerQueue_mutex;
+        std::mutex readerQueue_mutex;
+        std::mutex parseQueue_mutex;
+
+        std::condition_variable parseQueue_cond;
 
         char role_;
         uint8_t channel_;        
         uint8_t payload_;
+        bool init_completed_ = true;
         bool init_error_ = true;
-        bool resend_ = true;
+        bool send_ = true;
 
         SharedQueue<std::string> writerQueue;
         SharedQueue<std::string> readerQueue;
+        SharedQueue<std::string> parseQueue;
 
         ros::Duration sleeptime;
 
-        float_t timeout_ = 10.0;
+        uint8_t timeout_ = 20; // 20 cycles
 };
 
 }

@@ -9,7 +9,7 @@
             "type": "ros",
             "request": "launch",
             "preLaunchTask": "build",
-            "target": "/home/sonia/ros_sonia_ws/src/provider_underwater_com/launch/provider_underwater_com_auv8.launch",
+            "target": "/home/sonia/ros_sonia_ws/src/provider_underwater_com/launch/provider_underwater_com.launch",
         }
     ]
 }

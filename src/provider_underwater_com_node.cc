@@ -55,10 +55,6 @@ namespace provider_underwater_com
 
         Set_Sensor(std::stoi(configuration_.getChannel()));
 
-        /*if(role_ == ROLE_SLAVE)
-        {
-            read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
-        }*/
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
 
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
@@ -75,7 +71,7 @@ namespace provider_underwater_com
     //Node Spin
     void ProviderUnderwaterComNode::Spin()
     {
-        ros::Rate r(1); // 1 Hz
+        ros::Rate r(5); // 5 Hz
 
         while(ros::ok() && init_completed_ == true)
         {
@@ -148,6 +144,15 @@ namespace provider_underwater_com
                     res.packet_count = std::stoi(packet_count);
                     res.packet_count_loss = std::stoi(packet_loss_count);
                     res.bit_error_rate = std::stof(bit_error_rate);
+
+                    if(tmp == LINK_DOWN)
+                    {
+                        Flush_Queue();
+                        while(!writerQueue.empty()) writerQueue.pop_front();
+                        while(!readerQueue.empty()) readerQueue.pop_front();
+                        ROS_INFO_STREAM("Emptying the queues");
+                    }
+
                     break;
                 }
                 case CMD_FLUSH:
@@ -277,9 +282,6 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd)
     {
-        //writerQueue_mutex.lock();
-        //readerQueue_mutex.lock();
-
         Queue_Packet(std::string(1, cmd));
         Transmit_Packet(true);
 
@@ -295,16 +297,10 @@ namespace provider_underwater_com
                 buffer[i] = tmp.at(i);
             }
         }
-
-        //writerQueue_mutex.unlock();
-        //readerQueue_mutex.unlock();
     }
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet)
     {
-        //writerQueue_mutex.lock();
-        //readerQueue_mutex.lock();
-
         Queue_Packet(std::string(1, cmd), packet);
         Transmit_Packet(true);
         
@@ -320,9 +316,6 @@ namespace provider_underwater_com
                 buffer[i] = tmp.at(i);
             }
         }
-        
-        //writerQueue_mutex.unlock();
-        //readerQueue_mutex.unlock();
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const std::string &cmd)
@@ -346,6 +339,7 @@ namespace provider_underwater_com
         if(!writerQueue.empty())
         {
             if(send_) Transmit_Packet(false);
+            if(send_) ROS_INFO_STREAM("Packet has been sent. Now waiting for a reply");
 
             send_ = false;
 
@@ -357,12 +351,10 @@ namespace provider_underwater_com
                 {
                     buffer[i] = tmp.at(i);
                 }
-
-                if(buffer[2] == RESP_GOT_PACKET)
-                {
-                    Export_To_ROS(buffer);
-                }
-
+                
+                if(buffer[2] != RESP_GOT_PACKET) ROS_INFO_STREAM("Packet received isn't a response");
+                else Export_To_ROS(buffer);
+                
                 writerQueue.pop_front();
                 send_ = true;
             }
@@ -377,6 +369,7 @@ namespace provider_underwater_com
 
             while(writerQueue.empty())
             {
+                ROS_INFO_STREAM("Waiting for packet to send back");
                 ros::Duration(1).sleep();
             }
 
@@ -392,8 +385,6 @@ namespace provider_underwater_com
 
             while(!ros::isShuttingDown())
             {
-                //writerQueue_mutex.lock();
-
                 if(role_ == ROLE_MASTER)
                 {
                     Manage_Packet_Master();
@@ -402,8 +393,6 @@ namespace provider_underwater_com
                 {
                     Manage_Packet_Slave();
                 }
-
-                //writerQueue_mutex.unlock();
                 r.sleep();
             }
     }
@@ -432,19 +421,19 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {          
-            //readerQueue_mutex.lock();
-
             new_packet = Read_for_Packet(buffer);
 
             if(new_packet && ConfirmChecksum(buffer))
             {
+                ROS_INFO("Cmd received is %c", buffer[2]);
+                
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
                     readerQueue.push_back(buffer);
                 }
                 else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
                 {
-                    ROS_INFO_STREAM("Packet queue");
+                    ROS_DEBUG_STREAM("Packet queue");
                 }
                 else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
                 {
@@ -459,7 +448,6 @@ namespace provider_underwater_com
                     parseQueue_cond.notify_one();
                 }
             }
-            //readerQueue_mutex.unlock();
             r.sleep();
         }
     }

@@ -1,7 +1,0 @@
-#********** Driver Parameters ************
-
-/provider_underwater_com/connection/tty_port: "/dev/ttyUSB0"
-
-/provider_underwater_com/settings/role : "slave"
-
-/provider_underwater_com/settings/channel : "4"

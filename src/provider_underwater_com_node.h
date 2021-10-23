@@ -66,15 +66,15 @@ class ProviderUnderwaterComNode
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
         bool Transmit_Packet(bool pop_packet);
-        bool Read_for_Packet(char *buffer);
-        void Send_CMD_To_Sensor(char *buffer, char cmd);
-        void Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet);
+        //bool Read_for_Packet(char *buffer);
+        void Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
         bool Check_CMD(const std::string &cmd);
 
-        void Manage_Packet_Master();
-        void Manage_Packet_Slave();
+        //void Manage_Packet_Master();
+        //void Manage_Packet_Slave();
 
         void Manage_Packet();
+        void Manage_Packet_2();
         void Export_To_ROS(std::string buffer);
         void Read_for_Packet_Slave();
 
@@ -96,11 +96,17 @@ class ProviderUnderwaterComNode
         std::thread manage_thread;
         std::thread read_for_packet_slave;
 
-        std::mutex writerQueue_mutex;
-        std::mutex readerQueue_mutex;
-        std::mutex parseQueue_mutex;
+        std::mutex write_mutex;
+        std::mutex read_mutex;
+        std::mutex parse_mutex;
 
-        std::condition_variable parseQueue_cond;
+        std::condition_variable write_cond;
+        std::condition_variable read_cond;
+        std::condition_variable parse_cond;
+
+        std::string write_string = "";
+        std::string read_string = "";
+        std::string parse_string = "";
 
         char role_;
         uint8_t channel_;        
@@ -109,9 +115,9 @@ class ProviderUnderwaterComNode
         bool init_error_ = true;
         bool send_ = true;
 
-        SharedQueue<std::string> writerQueue;
-        SharedQueue<std::string> readerQueue;
-        SharedQueue<std::string> parseQueue;
+        //SharedQueue<std::string> writerQueue;
+        //SharedQueue<std::string> readerQueue;
+        //SharedQueue<std::string> parseQueue;
 
         ros::Duration sleeptime;
 

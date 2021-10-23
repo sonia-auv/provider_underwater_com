@@ -41,19 +41,7 @@ namespace provider_underwater_com
         
         read_for_packet_slave = std::thread(std::bind(&ProviderUnderwaterComNode::Read_for_Packet_Slave, this));
 
-        char *auv;        
-        auv = getenv("AUV");
-
-        if(strcmp(auv, "AUV7") == 0)
-        {
-            role_ = ROLE_SLAVE;
-        }
-        else
-        {
-            role_ = ROLE_MASTER;
-        }
-
-        Set_Sensor(std::stoi(configuration_.getChannel()));
+        Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
 
         manage_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Packet, this));
 
@@ -455,7 +443,7 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Set_Sensor(uint8_t channel)
+    void ProviderUnderwaterComNode::Set_Sensor(const char role, const uint8_t channel)
     {
         uint8_t i = 0;
         
@@ -464,7 +452,7 @@ namespace provider_underwater_com
             init_error_ = false;
             Verify_Version();   
             Get_Payload_Load();
-            Set_Configuration(role_, channel);
+            Set_Configuration(role, channel);
             Flush_Queue();
             ++i;
         }
@@ -522,7 +510,7 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Set_Configuration(const char &role, uint8_t channel)
+    void ProviderUnderwaterComNode::Set_Configuration(const char role, const uint8_t channel)
     {
         std::string acknowledge;
         char buffer[BUFFER_SIZE];

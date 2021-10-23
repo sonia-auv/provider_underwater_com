@@ -78,10 +78,10 @@ class ProviderUnderwaterComNode
         void Export_To_ROS(std::string buffer);
         void Read_for_Packet_Slave();
 
-        void Set_Sensor(uint8_t channel = 4);
+        void Set_Sensor(const char role, const uint8_t channel = 4);
         void Verify_Version();
         void Get_Payload_Load();
-        void Set_Configuration(const char &role, uint8_t channel);
+        void Set_Configuration(const char role, const uint8_t channel);
         void Flush_Queue();
 
         ros::NodeHandlePtr nh_;

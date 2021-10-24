@@ -34,7 +34,7 @@ namespace provider_underwater_com
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
-        //serialConnection_.flush();
+        serialConnection_.flush();
 
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
@@ -82,15 +82,13 @@ namespace provider_underwater_com
     {   
         char buffer[BUFFER_SIZE];
 
-        Send_CMD_To_Sensor(buffer, (char)req.cmd);
-        
-        char cmd_rec = buffer[2];
-        std::stringstream ss(buffer);
-
-        switch (cmd_rec)
+        switch ((char)req.cmd)
         {
             case CMD_GET_BUFFER_LENGTH:
             {    
+                Send_CMD_To_Sensor(buffer, CMD_GET_BUFFER_LENGTH);
+                std::stringstream ss(buffer);
+                
                 std::string queue_length;
                 
                 std::getline(ss, queue_length, ',');
@@ -101,6 +99,9 @@ namespace provider_underwater_com
             }
             case CMD_GET_SETTINGS:
             {
+                Send_CMD_To_Sensor(buffer, CMD_GET_SETTINGS);
+                std::stringstream ss(buffer);
+
                 std::string role;
                 std::string channel;
 
@@ -114,6 +115,9 @@ namespace provider_underwater_com
             }
             case CMD_GET_DIAGNOSTIC:
             {
+                Send_CMD_To_Sensor(buffer, CMD_GET_DIAGNOSTIC);
+                std::stringstream ss(buffer);
+
                 std::string link_up;
                 std::string packet_count;
                 std::string packet_loss_count;
@@ -133,13 +137,15 @@ namespace provider_underwater_com
             }
             case CMD_SET_SETTINGS:
             {
-                // Modify sonia_common first for the proc
+                if(Set_Configuration((char)req.role, req.channel)) return false;
+                res.role = req.role;
+                res.channel = req.channel;
                 break;
             }
             case CMD_FLUSH:
             {
                 ROS_INFO_STREAM("Flushed queue");
-                Flush_Queue();
+                if(Flush_Queue()) return false;
                 break;
             }
             default:
@@ -393,7 +399,7 @@ namespace provider_underwater_com
 
         if(major_version != "1")
         {
-            ROS_ERROR_STREAM("Major Version isn't 1. Restarting init");
+            ROS_ERROR_STREAM("Major Version isn't 1.");
             return true;
         }
         return false;
@@ -418,7 +424,7 @@ namespace provider_underwater_com
         }
         else
         {
-            ROS_ERROR_STREAM("Payload isn't a integer. Restarting init");
+            ROS_ERROR_STREAM("Payload isn't a integer.");
             return true;
         }
     }
@@ -439,7 +445,7 @@ namespace provider_underwater_com
 
         if(acknowledge == std::string(1, NAK))
         {
-            ROS_ERROR_STREAM("Could not set the configuration. Restarting init");
+            ROS_ERROR_STREAM("Could not set the configuration.");
             return true;
         }
         return false;
@@ -458,7 +464,7 @@ namespace provider_underwater_com
 
         if(acknowledge == std::string(1, NAK))
         {
-            ROS_ERROR_STREAM("Couldn't flush the queue. Restarting init");
+            ROS_ERROR_STREAM("Couldn't flush the queue.");
             return true;
         }
         return false;

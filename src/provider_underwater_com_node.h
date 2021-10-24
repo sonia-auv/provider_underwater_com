@@ -106,7 +106,6 @@ class ProviderUnderwaterComNode
         uint8_t payload_;
         bool init_error_ = true;
 };
-
 }
 
 #endif //PROVIDER_UNDERWATER_COM_NODE

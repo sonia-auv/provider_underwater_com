@@ -38,7 +38,8 @@
 
 #include "Configuration.h"
 #include "drivers/serial.h"
-#include <sonia_common/ModemM64_definitions.h>
+#include "Modem_Definitions.h"
+//#include <sonia_common/Modem_Definitions.h>
 #include <sonia_common/ModemPacket.h>
 
 namespace provider_underwater_com {

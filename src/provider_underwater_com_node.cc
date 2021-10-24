@@ -131,6 +131,11 @@ namespace provider_underwater_com
                 res.bit_error_rate = std::stof(bit_error_rate);
                 break;
             }
+            case CMD_SET_SETTINGS:
+            {
+                // Modify sonia_common first for the proc
+                break;
+            }
             case CMD_FLUSH:
             {
                 ROS_INFO_STREAM("Flushed queue");
@@ -139,7 +144,7 @@ namespace provider_underwater_com
             }
             default:
             {
-                ROS_ERROR("CMD received isn't working with the service. CMD received is %c", cmd_rec);
+                ROS_ERROR_STREAM("CMD received isn't working with this service");
                 return false;
             }
         }
@@ -232,9 +237,7 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet)
     {
-        Queue_Packet(std::string(1, cmd), packet);
-        //Transmit_Packet(true);
-        
+        Queue_Packet(std::string(1, cmd), packet);        
         std::unique_lock<std::mutex> mlock(parse_mutex);
         parse_cond.wait(mlock);
 

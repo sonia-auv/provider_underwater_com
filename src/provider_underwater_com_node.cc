@@ -54,9 +54,6 @@ namespace provider_underwater_com
         manage_write_thread.~thread();
         manage_response_thread.~thread();
         read_packet_thread.~thread();
-        underwaterComSubscriber_.shutdown();
-        underwaterComPublisher_.shutdown();
-        underwaterComService_.shutdown();
     }
 
     //Node Spin

@@ -251,8 +251,6 @@ namespace provider_underwater_com
             {
                 buffer[i] = tmp.at(i);
             }
-
-            //parse_string.clear();
         }
     }
 
@@ -270,19 +268,22 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Manage_Write()
     { 
+        ros::Rate r(1); // 1 Hz
         ROS_INFO_STREAM("Manage write thread started");
 
-            while(!ros::isShuttingDown())
-            {
-                std::unique_lock<std::mutex> mlock(write_mutex);
-                write_cond.wait(mlock);
-                if(!write_string.empty()) Transmit_Packet(false);
-                ROS_INFO_STREAM("Sent a packet");
-            }
+        while(!ros::isShuttingDown())
+        {
+            std::unique_lock<std::mutex> mlock(write_mutex);
+            write_cond.wait(mlock);
+            if(!write_string.empty()) Transmit_Packet(false);
+            //ROS_INFO_STREAM("Sent a packet");
+            r.sleep();
+        }
     }
 
     void ProviderUnderwaterComNode::Manage_Response()
     {
+        ros::Rate r(1); // 1 Hz
         ROS_INFO_STREAM("Manage response thread started");
 
         while (!ros::isShuttingDown())
@@ -290,8 +291,8 @@ namespace provider_underwater_com
             std::unique_lock<std::mutex> mlock(response_mutex);
             response_cond.wait(mlock);
             if(!response_string.empty()) Export_To_ROS(response_string);
-            //response_string.clear();
-            ROS_INFO_STREAM("Read a packet");
+            //ROS_INFO_STREAM("Read a packet");
+            r.sleep();
         }
     }
 

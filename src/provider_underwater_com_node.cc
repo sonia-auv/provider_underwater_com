@@ -24,6 +24,7 @@
  */
 
 #include "provider_underwater_com_node.h"
+#include <fcntl.h>
 
 #define BUFFER_SIZE 256
 
@@ -32,7 +33,7 @@ namespace provider_underwater_com
 
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
-        : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
+        : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort(), O_RDWR | O_NOCTTY)
     {
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);

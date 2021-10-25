@@ -251,7 +251,7 @@ namespace provider_underwater_com
                 buffer[i] = tmp.at(i);
             }
 
-            parse_string.clear();
+            //parse_string.clear();
         }
     }
 
@@ -275,7 +275,7 @@ namespace provider_underwater_com
             {
                 std::unique_lock<std::mutex> mlock(write_mutex);
                 write_cond.wait(mlock);
-                Transmit_Packet(true);
+                if(!write_string.empty()) Transmit_Packet(false);
             }
     }
 
@@ -287,8 +287,8 @@ namespace provider_underwater_com
         {
             std::unique_lock<std::mutex> mlock(response_mutex);
             response_cond.wait(mlock);
-            Export_To_ROS(response_string);
-            response_string.clear();
+            if(!response_string.empty()) Export_To_ROS(response_string);
+            //response_string.clear();
         }
     }
 

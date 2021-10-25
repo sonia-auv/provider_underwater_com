@@ -310,7 +310,7 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Read_Packet()
     {
-        ros::Rate r(2); // 2 Hz
+        ros::Rate r(5); // 5 Hz
         uint8_t i;
         char buffer[BUFFER_SIZE];
 

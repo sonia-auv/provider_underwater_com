@@ -310,14 +310,18 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Read_Packet()
     {
+        ros::Rate r(2); // 2 Hz
         uint8_t i;
         char buffer[BUFFER_SIZE];
+
+        ROS_INFO_STREAM("Read Packet thread started");
 
         while(!ros::isShuttingDown())
         {          
             do
             {
                 serialConnection_.readOnce(buffer, 0);
+                r.sleep();
             } while(buffer[0] != SOP);
 
             for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)

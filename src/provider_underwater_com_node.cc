@@ -402,6 +402,7 @@ namespace provider_underwater_com
             ROS_ERROR_STREAM("Major Version isn't 1.");
             return true;
         }
+        ROS_INFO_STREAM("Major version is 1");
         return false;
     }
 
@@ -448,6 +449,7 @@ namespace provider_underwater_com
             ROS_ERROR_STREAM("Could not set the configuration.");
             return true;
         }
+        ROS_INFO_STREAM("Configuration set");
         return false;
     }
 
@@ -467,6 +469,7 @@ namespace provider_underwater_com
             ROS_ERROR_STREAM("Couldn't flush the queue.");
             return true;
         }
+        ROS_INFO_STREAM("Queue flushed");
         return false;
     }
 }

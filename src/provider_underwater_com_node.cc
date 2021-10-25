@@ -40,8 +40,6 @@ namespace provider_underwater_com
         manage_write_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Write, this));
         manage_response_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Response, this));
         read_packet_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
-        
-        ROS_INFO_STREAM("Setting the sensor");
 
         Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
 
@@ -278,7 +276,6 @@ namespace provider_underwater_com
                 std::unique_lock<std::mutex> mlock(write_mutex);
                 write_cond.wait(mlock);
                 Transmit_Packet(true);
-                ROS_INFO_STREAM("Packet is sent");
             }
     }
 
@@ -334,8 +331,6 @@ namespace provider_underwater_com
             {
                 continue;
             }
-
-            ROS_INFO_STREAM("New Data received");
 
             if(ConfirmChecksum(buffer))
             {                

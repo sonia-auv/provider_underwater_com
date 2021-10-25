@@ -41,9 +41,6 @@ namespace provider_underwater_com
         manage_response_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Response, this));
         read_packet_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
 
-        ROS_INFO_STREAM("Setting the sensor");
-        Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
-
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
     }
 
@@ -59,7 +56,10 @@ namespace provider_underwater_com
     void ProviderUnderwaterComNode::Spin()
     {
         ros::Rate r(5); // 5 Hz
-
+        
+        ROS_INFO_STREAM("Setting the sensor");
+        Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
+        
         while(ros::ok() && init_error_ == false)
         {
             ros::spinOnce();

@@ -37,6 +37,7 @@
 #include <thread>
 
 #include "Configuration.h"
+#include "sharedQueue.h"
 #include "drivers/serial.h"
 #include "Modem_Definitions.h"
 //#include <sonia_common/Modem_Definitions.h>
@@ -64,7 +65,7 @@ class ProviderUnderwaterComNode
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
         bool Transmit_Packet(bool pop_packet);
-        void Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
+        bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
         bool Check_CMD(const char *cmd);
 
         void Manage_Write();
@@ -102,6 +103,10 @@ class ProviderUnderwaterComNode
         std::string write_string = "";
         std::string response_string = "";
         std::string parse_string = "";
+
+        SharedQueue<std::string> writerQueue;
+        SharedQueue<std::string> responseQueue;
+        SharedQueue<std::string> parseQueue;
        
         uint8_t payload_;
         bool init_error_ = true;

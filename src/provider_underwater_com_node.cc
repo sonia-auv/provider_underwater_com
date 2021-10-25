@@ -41,7 +41,7 @@ namespace provider_underwater_com
         manage_response_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Response, this));
         read_packet_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
         
-        ros::Duration(5).sleep();
+        ros::Duration(1).sleep();
 
         ROS_INFO_STREAM("Setting the sensor");
         Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
@@ -210,10 +210,10 @@ namespace provider_underwater_com
 
             sentence = ss.str();
             AppendChecksum(sentence);
-
-            std::unique_lock<std::mutex> mlock(write_mutex);
-            write_string = sentence;
-            write_cond.notify_one();
+            writerQueue.push_back(sentence);
+            // std::unique_lock<std::mutex> mlock(write_mutex);
+            // write_string = sentence;
+            // write_cond.notify_one();
 
             ROS_DEBUG_STREAM("Packet sent to Modem");
         }
@@ -225,10 +225,10 @@ namespace provider_underwater_com
 
     bool ProviderUnderwaterComNode::Transmit_Packet(bool pop_packet)
     {
-        if(!write_string.empty())
+        if(!writerQueue.empty())
         {
-            serialConnection_.transmit(write_string);
-            if(pop_packet) write_string.clear();
+            serialConnection_.transmit(writerQueue.front());
+            if(pop_packet) writerQueue.pop_front();
             return true;
         }
         else
@@ -238,13 +238,13 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet)
+    bool ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet)
     {
         Queue_Packet(std::string(1, cmd), packet);        
         std::unique_lock<std::mutex> mlock(parse_mutex);
         parse_cond.wait(mlock);
 
-        if(!parse_string.empty())
+        if(!parseQueue.empty())
         {        
             std::string tmp = parse_string;
 
@@ -252,7 +252,9 @@ namespace provider_underwater_com
             {
                 buffer[i] = tmp.at(i);
             }
+            return false;
         }
+        return true;
     }
 
     bool ProviderUnderwaterComNode::Check_CMD(const char *cmd)
@@ -274,10 +276,9 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {
-            std::unique_lock<std::mutex> mlock(write_mutex);
-            write_cond.wait(mlock);
-            if(!write_string.empty()) Transmit_Packet(false);
-            //ROS_INFO_STREAM("Sent a packet");
+            // std::unique_lock<std::mutex> mlock(write_mutex);
+            // write_cond.wait(mlock);
+            if(!writerQueue.empty()) Transmit_Packet(true);
             r.sleep();
         }
     }
@@ -289,9 +290,9 @@ namespace provider_underwater_com
 
         while (!ros::isShuttingDown())
         {
-            std::unique_lock<std::mutex> mlock(response_mutex);
-            response_cond.wait(mlock);
-            if(!response_string.empty()) Export_To_ROS(response_string);
+            // std::unique_lock<std::mutex> mlock(response_mutex);
+            // response_cond.wait(mlock);
+            if(!responseQueue.empty()) Export_To_ROS(responseQueue.get_n_pop_front());
             //ROS_INFO_STREAM("Read a packet");
             r.sleep();
         }
@@ -343,9 +344,10 @@ namespace provider_underwater_com
             {                
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
-                    std::unique_lock<std::mutex> mlock(response_mutex);
-                    response_string = std::string(buffer);
-                    response_cond.notify_one();
+                    // std::unique_lock<std::mutex> mlock(response_mutex);
+                    // response_string = std::string(buffer);
+                    // response_cond.notify_one();
+                    responseQueue.push_back(buffer);
                 }
                 else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
                 {
@@ -362,6 +364,7 @@ namespace provider_underwater_com
                     std::unique_lock<std::mutex> mlock(parse_mutex);
                     parse_string = std::string(buffer);
                     parse_cond.notify_one();
+                    parseQueue.push_back(buffer);
                 }
             }
         }
@@ -393,7 +396,7 @@ namespace provider_underwater_com
         std::string major_version = "";
         char buffer[BUFFER_SIZE];
         
-        Send_CMD_To_Sensor(buffer, CMD_GET_VERSION);
+        if(Send_CMD_To_Sensor(buffer, CMD_GET_VERSION)) return true;
 
         std::stringstream ss(buffer);
         std::getline(ss, major_version, ',');
@@ -413,7 +416,7 @@ namespace provider_underwater_com
         std::string payload = "";
         char buffer[BUFFER_SIZE];
 
-        Send_CMD_To_Sensor(buffer, CMD_GET_PAYLOAD_SIZE);
+        if(Send_CMD_To_Sensor(buffer, CMD_GET_PAYLOAD_SIZE)) return true;
 
         std::stringstream ss(buffer);
         std::getline(ss, payload, ',');
@@ -440,7 +443,7 @@ namespace provider_underwater_com
         sprintf(buffer, "%d", channel);
         std::string packet = "," + std::string(1, role) + "," + buffer;
 
-        Send_CMD_To_Sensor(buffer, CMD_SET_SETTINGS, packet);
+        if(Send_CMD_To_Sensor(buffer, CMD_SET_SETTINGS, packet)) return true;
 
         std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');
@@ -460,7 +463,7 @@ namespace provider_underwater_com
         std::string acknowledge;
         char buffer[BUFFER_SIZE];
 
-        Send_CMD_To_Sensor(buffer, CMD_FLUSH);
+        if(Send_CMD_To_Sensor(buffer, CMD_FLUSH)) return true;
 
         std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');

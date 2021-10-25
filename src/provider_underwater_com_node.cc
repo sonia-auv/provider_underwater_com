@@ -34,8 +34,6 @@ namespace provider_underwater_com
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
-        serialConnection_.flush();
-
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
         

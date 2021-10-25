@@ -142,7 +142,6 @@ namespace provider_underwater_com
             }
             case CMD_FLUSH:
             {
-                ROS_INFO_STREAM("Flushed queue");
                 if(Flush_Queue()) return false;
                 break;
             }
@@ -350,7 +349,7 @@ namespace provider_underwater_com
                 }
                 else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
                 {
-                    ROS_INFO_STREAM("Packet queue");
+                    ROS_DEBUG_STREAM("Packet queue");
                 }
                 else if(buffer[2] == RETURN_ERROR || buffer[2] == MALFORMED)
                 {

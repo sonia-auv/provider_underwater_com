@@ -41,6 +41,7 @@ namespace provider_underwater_com
         manage_response_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Response, this));
         read_packet_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
 
+        ROS_INFO_STREAM("Setting the sensor");
         Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
 
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
@@ -276,6 +277,7 @@ namespace provider_underwater_com
                 std::unique_lock<std::mutex> mlock(write_mutex);
                 write_cond.wait(mlock);
                 if(!write_string.empty()) Transmit_Packet(false);
+                ROS_INFO_STREAM("Sent a packet");
             }
     }
 
@@ -289,6 +291,7 @@ namespace provider_underwater_com
             response_cond.wait(mlock);
             if(!response_string.empty()) Export_To_ROS(response_string);
             //response_string.clear();
+            ROS_INFO_STREAM("Read a packet");
         }
     }
 
@@ -310,7 +313,6 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Read_Packet()
     {
-        ros::Rate r(5); // 5 Hz
         uint8_t i;
         char buffer[BUFFER_SIZE];
 
@@ -321,7 +323,6 @@ namespace provider_underwater_com
             do
             {
                 serialConnection_.readOnce(buffer, 0);
-                r.sleep();
             } while(buffer[0] != SOP);
 
             for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)

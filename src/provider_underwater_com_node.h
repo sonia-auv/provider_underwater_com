@@ -35,14 +35,13 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
-#include <math.h>
-#include <time.h>
 
 #include "Configuration.h"
-#include "drivers/serial.h"
-#include <sonia_common/ModemM64_definitions.h>
-#include <sonia_common/ModemPacket.h>
 #include "sharedQueue.h"
+#include "drivers/serial.h"
+#include "Modem_Definitions.h"
+//#include <sonia_common/Modem_Definitions.h>
+#include <sonia_common/ModemPacket.h>
 
 namespace provider_underwater_com {
 
@@ -66,23 +65,19 @@ class ProviderUnderwaterComNode
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
         bool Transmit_Packet(bool pop_packet);
-        bool Read_for_Packet(char *buffer);
-        void Send_CMD_To_Sensor(char *buffer, char cmd);
-        void Send_CMD_To_Sensor(char *buffer, char cmd, std::string &packet);
-        bool Check_CMD(const std::string &cmd);
+        bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
+        bool Check_CMD(const char *cmd);
 
-        void Manage_Packet_Master();
-        void Manage_Packet_Slave();
-
-        void Manage_Packet();
+        void Manage_Write();
+        void Manage_Response();
         void Export_To_ROS(std::string buffer);
-        void Read_for_Packet_Slave();
+        void Read_Packet();
 
-        void Set_Sensor(uint8_t channel = 4);
-        void Verify_Version();
-        void Get_Payload_Load();
-        void Set_Configuration(const char &role, uint8_t channel);
-        void Flush_Queue();
+        void Set_Sensor(const char role, const uint8_t channel = 4);
+        bool Verify_Version();
+        bool Get_Payload_Load();
+        bool Set_Configuration(const char role, const uint8_t channel);
+        bool Flush_Queue();
 
         ros::NodeHandlePtr nh_;
         Configuration configuration_;
@@ -93,31 +88,29 @@ class ProviderUnderwaterComNode
         ros::ServiceServer underwaterComService_;
         std_msgs::String msg_received;
 
-        std::thread manage_thread;
-        std::thread read_for_packet_slave;
+        std::thread manage_write_thread;
+        std::thread manage_response_thread;
+        std::thread read_packet_thread;
 
-        std::mutex writerQueue_mutex;
-        std::mutex readerQueue_mutex;
-        std::mutex parseQueue_mutex;
+        std::mutex write_mutex;
+        std::mutex response_mutex;
+        std::mutex parse_mutex;
 
-        std::condition_variable parseQueue_cond;
+        std::condition_variable write_cond;
+        std::condition_variable response_cond;
+        std::condition_variable parse_cond;
 
-        char role_;
-        uint8_t channel_;        
-        uint8_t payload_;
-        bool init_completed_ = true;
-        bool init_error_ = true;
-        bool send_ = true;
+        std::string write_string = "";
+        std::string response_string = "";
+        std::string parse_string = "";
 
         SharedQueue<std::string> writerQueue;
-        SharedQueue<std::string> readerQueue;
+        SharedQueue<std::string> responseQueue;
         SharedQueue<std::string> parseQueue;
-
-        ros::Duration sleeptime;
-
-        uint8_t timeout_ = 20; // 20 cycles
+       
+        uint8_t payload_;
+        bool init_error_ = true;
 };
-
 }
 
 #endif //PROVIDER_UNDERWATER_COM_NODE

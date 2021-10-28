@@ -71,10 +71,31 @@ namespace provider_underwater_com
         ros::shutdown();
     }
 
-    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
+    void ProviderUnderwaterComNode::UnderwaterComCallback(const sonia_common::IntersubCom &msg)
     {
-        std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
-        Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
+        char packet_array[8]= "";
+        std::string packet = "";
+
+        bytes_8 data;
+        // Add function for multiple paquet support
+        data.raw_data.header.endOfPacket = 0b1;
+        data.raw_data.header.packetId = 0b0;
+        data.raw_data.header.packetNumber = 0b1;
+
+        data.raw_data.killSwitchState = (msg.kill_state & 0x1);
+        data.raw_data.missionSwitchState = (msg.mission_State & 0x1);
+        data.raw_data.depth = msg.depth & 0xFFFF;
+        data.raw_data.missionId = msg.mission_id & 0xFF;
+        data.raw_data.missionState = msg.mission_state & 0xFF;
+        data.raw_data.torpedosState = 0x0;
+        data.raw_data.droppersState = 0x0;
+
+        for(uint8_t i = 0; i < 8; ++i)
+        {
+            packet_array[i] = (char)(data.u64_data >> i*8);
+        }
+
+        Queue_Packet(CMD_QUEUE_PACKET, payload_, packet_array);
     }
 
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
@@ -222,6 +243,39 @@ namespace provider_underwater_com
         {
             ROS_WARN_STREAM("CMD unknow. Can't queue packet");
         }
+    }
+
+    void ProviderUnderwaterComNode::Queue_Packet(const char cmd, const uint8_t payload, const char packet[8])
+    {
+        std::stringstream ss;
+        std::string sentence;
+
+        if(Check_CMD(&cmd))
+        {
+            ss << SOP << DIR_CMD << cmd;
+
+            if(cmd == CMD_QUEUE_PACKET)
+            {
+                ss << ',' << std::to_string(payload_) << ',' << packet;
+            }
+            else if( cmd == CMD_SET_SETTINGS)
+            {
+                ss << packet;
+            }
+
+            sentence = ss.str();
+            AppendChecksum(sentence);
+            writerQueue.push_back(sentence);
+            // std::unique_lock<std::mutex> mlock(write_mutex);
+            // write_string = sentence;
+            // write_cond.notify_one();
+
+            ROS_DEBUG_STREAM("Packet sent to Modem");
+        }
+        else
+        {
+            ROS_WARN_STREAM("CMD unknow. Can't queue packet");
+        }       
     }
 
     bool ProviderUnderwaterComNode::Transmit_Packet(bool pop_packet)

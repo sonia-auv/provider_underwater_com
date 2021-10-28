@@ -27,6 +27,7 @@
 #define PROVIDER_UNDERWATER_COM_NODE
 
 #include <ros/ros.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string>
 #include <std_msgs/String.h>
@@ -40,6 +41,8 @@
 #include "sharedQueue.h"
 #include "drivers/serial.h"
 #include "Modem_Definitions.h"
+#include "modem_data.h"
+#include <sonia_common/IntersubCom.h>
 //#include <sonia_common/Modem_Definitions.h>
 #include <sonia_common/ModemPacket.h>
 
@@ -56,7 +59,7 @@ class ProviderUnderwaterComNode
     
     private:
 
-        void UnderwaterComCallback(const std_msgs::String &msg);
+        void UnderwaterComCallback(const sonia_common::IntersubCom &msg);
         bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
         uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
@@ -64,6 +67,7 @@ class ProviderUnderwaterComNode
         bool ConfirmChecksum(const std::string &sentence);
 
         void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        void Queue_Packet(const char cmd, const uint8_t payload, const char packet[8]);
         bool Transmit_Packet(bool pop_packet);
         bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
         bool Check_CMD(const char *cmd);

@@ -40,7 +40,6 @@
 #include "Configuration.h"
 #include "sharedQueue.h"
 #include "drivers/serial.h"
-//#include "Modem_Definitions.h"
 #include "modem_data.h"
 #include <sonia_common/IntersubCom.h>
 #include <sonia_common/Modem_Definitions.h>

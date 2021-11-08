@@ -20,11 +20,11 @@ typedef struct
     uint8_t torpedosState : 4, droppersState : 4;
 } Modem_M64_t;
 
-union bytes_8
-{
-    Modem_M64_t raw_data;
-    uint64_t u64_data;
-};
+// union bytes_8
+// {
+//     Modem_M64_t raw_data;
+//     uint64_t u64_data;
+// };
 
 #pragma pack(pop)
 

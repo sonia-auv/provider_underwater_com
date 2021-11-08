@@ -47,6 +47,7 @@
 #include <sonia_common/ModemPacket.h>
 
 #define BUFFER_SIZE 256
+#define MODEM_M64_PAYLOAD 8
 
 namespace provider_underwater_com {
 
@@ -65,14 +66,14 @@ class ProviderUnderwaterComNode
         bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
         uint8_t Calculate_Checksum(const char *buffer, const size_t size);
-        uint8_t Append_Checksum(char *buffer, const size_t size);
+        uint8_t Append_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
         bool Confirm_Checksum(char *buffer, const size_t size);
 
-        void Queue_Packet(const char cmd, const char *packet = "", const size_t size_packet = 0);
+        void Queue_Packet(const char cmd, const char (&packet)[MODEM_M64_PAYLOAD] = {}, const size_t size_packet = 0); // Prevent decay
         bool Transmit_Packet(bool pop_packet);
-        bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
+        bool Send_CMD_To_Sensor(char *buffer, char cmd, const char (&packet)[MODEM_M64_PAYLOAD] = {}, size_t size = 0); // Prevent decay
         bool Check_CMD(const char *cmd);
-        void Append_Packet(char *buffer, const size_t index, const char *packet, const size_t size_packet);
+        void Append_Packet(char (&buffer)[BUFFER_SIZE], const size_t index, const char (&packet)[MODEM_M64_PAYLOAD], const size_t size_packet); // Prevent decay
         uint8_t Find_Character(const char *buffer, const char to_find, const size_t size);
 
         void Manage_Write();
@@ -111,13 +112,14 @@ class ProviderUnderwaterComNode
         std::string response_string = "";
         std::string parse_string = "";
 
-        SharedQueue<char*> writerQueue;
+        char writerQueue[BUFFER_SIZE] = {};
         SharedQueue<int> writerSizeQueue;
         SharedQueue<std::string> responseQueue;
         SharedQueue<std::string> parseQueue;
        
         uint8_t payload_;
         bool init_error_ = true;
+        Modem_M64_t modem_data;
 };
 }
 

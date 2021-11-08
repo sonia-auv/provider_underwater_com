@@ -102,7 +102,7 @@ ssize_t Serial::transmit(const std::string data)
     return write(fd, data.c_str(), data.size());
 }
 
-ssize_t Serial::transmit(const char *data, const ssize_t size)
+ssize_t Serial::transmit(const void *data, const ssize_t size)
 {
     ROS_DEBUG("serial transmit data");
     return write(fd, data, size);

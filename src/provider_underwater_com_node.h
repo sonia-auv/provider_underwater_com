@@ -40,10 +40,10 @@
 #include "Configuration.h"
 #include "sharedQueue.h"
 #include "drivers/serial.h"
-#include "Modem_Definitions.h"
+//#include "Modem_Definitions.h"
 #include "modem_data.h"
 #include <sonia_common/IntersubCom.h>
-//#include <sonia_common/Modem_Definitions.h>
+#include <sonia_common/Modem_Definitions.h>
 #include <sonia_common/ModemPacket.h>
 
 namespace provider_underwater_com {
@@ -62,15 +62,20 @@ class ProviderUnderwaterComNode
         void UnderwaterComCallback(const sonia_common::IntersubCom &msg);
         bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
-        uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
-        void AppendChecksum(std::string &sentence);
-        bool ConfirmChecksum(const std::string &sentence);
+        //uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
+        uint8_t Calculate_Checksum(const char *buffer, const size_t size);
+        //void AppendChecksum(std::string &sentence);
+        void Append_Checksum(char *buffer, const size_t size);
+        //bool ConfirmChecksum(const std::string &sentence);
+        bool Confirm_Checksum(char *buffer, const size_t size);
 
-        void Queue_Packet(const std::string &cmd, const std::string &packet = "");
-        void Queue_Packet(const char cmd, const uint8_t payload, const char packet[8]);
+        //void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        void Queue_Packet(const char cmd, const char *packet = "", const uint8_t payload = 0, const size_t size_packet = 0);
         bool Transmit_Packet(bool pop_packet);
         bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
         bool Check_CMD(const char *cmd);
+        void Append_Packet(char *buffer, const size_t index, const char *packet, const size_t size_packet);
+        uint8_t Find_Character(const char *buffer, const char to_find, const size_t size);
 
         void Manage_Write();
         void Manage_Response();

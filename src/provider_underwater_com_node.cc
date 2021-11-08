@@ -26,8 +26,6 @@
 #include "provider_underwater_com_node.h"
 #include <fcntl.h>
 
-#define BUFFER_SIZE 256
-
 namespace provider_underwater_com
 {
 
@@ -94,7 +92,7 @@ namespace provider_underwater_com
             packet_array[i] = (char)(data.u64_data >> i*payload_);
         }
 
-        Queue_Packet(CMD_QUEUE_PACKET, packet_array, payload_, payload_);
+        Queue_Packet(CMD_QUEUE_PACKET, packet_array, payload_);
     }
 
     bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
@@ -187,18 +185,19 @@ namespace provider_underwater_com
         return check;
     }
 
-    void ProviderUnderwaterComNode::Append_Checksum(char *buffer, const size_t size)
+    uint8_t ProviderUnderwaterComNode::Append_Checksum(char *buffer, const size_t size)
     {
         char checksum_buffer[2];
 
         uint8_t checksum = Calculate_Checksum(buffer, size);
         sprintf(checksum_buffer, "%02x", checksum);
 
-        buffer[size + 1] = CHECKSUM;
-        buffer[size + 2] = checksum_buffer[0];
-        buffer[size + 3] = checksum_buffer[1];
-        buffer[size + 4] = EOP;
-        buffer[size + 5] = '\0'; // À confirmer si utile
+        buffer[size] = CHECKSUM;
+        buffer[size + 1] = checksum_buffer[0];
+        buffer[size + 2] = checksum_buffer[1];
+        buffer[size + 3] = EOP;
+
+        return size + 4;
     }
 
     bool ProviderUnderwaterComNode::Confirm_Checksum(char *buffer, const size_t size)
@@ -207,10 +206,10 @@ namespace provider_underwater_com
 
         try // Calcul à vérifier
         {
-            uint8_t position = Find_Character(buffer, size, CHECKSUM);
+            uint8_t position = Find_Character(buffer, CHECKSUM, size);
             std::strncpy(checksumData, buffer, position);
             uint8_t calculatedChecksum = Calculate_Checksum(checksumData, position);
-            std::string checksumSentence = std::to_string(buffer[position + 1]) + std::to_string(buffer[position + 2]);
+            std::string checksumSentence {buffer[position + 1], buffer[position + 2]};
             uint8_t originalChecksum = std::stoi(checksumSentence, nullptr, 16);
             return originalChecksum == calculatedChecksum;
         }
@@ -250,7 +249,7 @@ namespace provider_underwater_com
     //     }
     // }
 
-    void ProviderUnderwaterComNode::Queue_Packet(const char cmd, const char *packet, const uint8_t payload, const size_t size_packet)
+    void ProviderUnderwaterComNode::Queue_Packet(const char cmd, const char *packet, const size_t size_packet)
     {
         char send_msg[BUFFER_SIZE];
         uint8_t index = 0;
@@ -260,10 +259,11 @@ namespace provider_underwater_com
             send_msg[0] = SOP;
             send_msg[1] = DIR_CMD;
             send_msg[2] = cmd;
-            send_msg[3] = ',';
+            index = 3;
 
             if(cmd == CMD_QUEUE_PACKET)
             {
+                send_msg[3] = ',';
                 send_msg[4] = payload_;
                 send_msg[5] = ',';
                 index = 6;
@@ -271,12 +271,14 @@ namespace provider_underwater_com
             }
             else if( cmd == CMD_SET_SETTINGS)
             {
+                send_msg[3] = ',';
                 index = 4;
                 Append_Packet(send_msg, index, packet, size_packet);
             }
 
-            Append_Checksum(send_msg, index + size_packet);
-            //writerQueue.push_back();
+            index = Append_Checksum(send_msg, index + size_packet);
+            writerQueue.push_back(send_msg);
+            writerSizeQueue.push_back(index);
 
             ROS_DEBUG_STREAM("Packet sent to Modem");
         }
@@ -288,10 +290,14 @@ namespace provider_underwater_com
 
     bool ProviderUnderwaterComNode::Transmit_Packet(bool pop_packet)
     {
-        if(!writerQueue.empty())
+        if(!writerQueue.empty() && !writerSizeQueue.empty())
         {
-            serialConnection_.transmit(writerQueue.front());
-            if(pop_packet) writerQueue.pop_front();
+            serialConnection_.transmit(writerQueue.front(), writerSizeQueue.front());
+            if(pop_packet)
+            {
+                writerQueue.pop_front();
+                writerSizeQueue.pop_front();
+            }
             return true;
         }
         else
@@ -303,7 +309,7 @@ namespace provider_underwater_com
 
     bool ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet)
     {
-        Queue_Packet(cmd, packet.c_str());   
+        Queue_Packet(cmd, packet.c_str(), packet.size());
         std::unique_lock<std::mutex> mlock(parse_mutex);
         parse_cond.wait(mlock);
 
@@ -359,7 +365,7 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {
-            if(!writerQueue.empty()) Transmit_Packet(true);
+            if(!writerQueue.empty() && !writerSizeQueue.empty()) Transmit_Packet(true);
             r.sleep();
         }
     }
@@ -516,7 +522,7 @@ namespace provider_underwater_com
         char buffer[BUFFER_SIZE];
 
         sprintf(buffer, "%d", channel);
-        std::string packet = "," + std::string(1, role) + "," + buffer;
+        std::string packet = std::string(1, role) + "," + buffer;
 
         if(Send_CMD_To_Sensor(buffer, CMD_SET_SETTINGS, packet)) return true;
 
@@ -524,7 +530,7 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
+        if(acknowledge != std::string(1, ACK))
         {
             ROS_ERROR_STREAM("Could not set the configuration.");
             return true;
@@ -544,7 +550,7 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
+        if(acknowledge != std::string(1, ACK))
         {
             ROS_ERROR_STREAM("Couldn't flush the queue.");
             return true;

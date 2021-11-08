@@ -46,6 +46,8 @@
 #include <sonia_common/Modem_Definitions.h>
 #include <sonia_common/ModemPacket.h>
 
+#define BUFFER_SIZE 256
+
 namespace provider_underwater_com {
 
 class ProviderUnderwaterComNode
@@ -62,15 +64,11 @@ class ProviderUnderwaterComNode
         void UnderwaterComCallback(const sonia_common::IntersubCom &msg);
         bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
-        //uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
         uint8_t Calculate_Checksum(const char *buffer, const size_t size);
-        //void AppendChecksum(std::string &sentence);
-        void Append_Checksum(char *buffer, const size_t size);
-        //bool ConfirmChecksum(const std::string &sentence);
+        uint8_t Append_Checksum(char *buffer, const size_t size);
         bool Confirm_Checksum(char *buffer, const size_t size);
 
-        //void Queue_Packet(const std::string &cmd, const std::string &packet = "");
-        void Queue_Packet(const char cmd, const char *packet = "", const uint8_t payload = 0, const size_t size_packet = 0);
+        void Queue_Packet(const char cmd, const char *packet = "", const size_t size_packet = 0);
         bool Transmit_Packet(bool pop_packet);
         bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
         bool Check_CMD(const char *cmd);
@@ -113,7 +111,8 @@ class ProviderUnderwaterComNode
         std::string response_string = "";
         std::string parse_string = "";
 
-        SharedQueue<std::string> writerQueue;
+        SharedQueue<char*> writerQueue;
+        SharedQueue<int> writerSizeQueue;
         SharedQueue<std::string> responseQueue;
         SharedQueue<std::string> parseQueue;
        

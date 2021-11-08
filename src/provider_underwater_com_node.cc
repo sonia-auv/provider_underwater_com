@@ -175,7 +175,7 @@ namespace provider_underwater_com
         return true;
     }
 
-    uint8_t ProviderUnderwaterComNode::Calculate_Checksum(const char *buffer, const size_t size)
+    uint8_t ProviderUnderwaterComNode::Calculate_Checksum(const char (&buffer)[BUFFER_SIZE], const size_t size)
     {
         uint8_t check = 0;
 
@@ -202,14 +202,14 @@ namespace provider_underwater_com
         return size + 4;
     }
 
-    bool ProviderUnderwaterComNode::Confirm_Checksum(char *buffer, const size_t size)
+    bool ProviderUnderwaterComNode::Confirm_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size)
     {    
         char checksumData[BUFFER_SIZE];
 
         try
         {
             uint8_t position = Find_Character(buffer, CHECKSUM, size);
-            std::strncpy(checksumData, buffer, position);
+            Copy_Array(buffer, checksumData, position);
             uint8_t calculatedChecksum = Calculate_Checksum(checksumData, position);
             std::string checksumSentence {buffer[position + 1], buffer[position + 2]};
             uint8_t originalChecksum = std::stoi(checksumSentence, nullptr, 16);
@@ -347,7 +347,7 @@ namespace provider_underwater_com
         }
     }
 
-    uint8_t ProviderUnderwaterComNode::Find_Character(const char *buffer, const char to_find, const size_t size)
+    uint8_t ProviderUnderwaterComNode::Find_Character(const char (&buffer)[BUFFER_SIZE], const char to_find, const size_t size)
     {
         uint8_t i;
 
@@ -357,6 +357,14 @@ namespace provider_underwater_com
         }
 
         return i;
+    }
+
+    void ProviderUnderwaterComNode::Copy_Array(const char (&buffer)[BUFFER_SIZE], char (&checksum_data)[BUFFER_SIZE], const size_t size)
+    {
+        for(uint8_t i = 0; i < size; ++i)
+        {
+            checksum_data[i] = buffer[i];
+        }
     }
 
     void ProviderUnderwaterComNode::Manage_Write()

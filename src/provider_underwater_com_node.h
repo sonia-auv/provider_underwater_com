@@ -65,16 +65,17 @@ class ProviderUnderwaterComNode
         void UnderwaterComCallback(const sonia_common::IntersubCom &msg);
         bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
 
-        uint8_t Calculate_Checksum(const char *buffer, const size_t size);
+        uint8_t Calculate_Checksum(const char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
         uint8_t Append_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
-        bool Confirm_Checksum(char *buffer, const size_t size);
+        bool Confirm_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
 
         void Queue_Packet(const char cmd, const char (&packet)[MODEM_M64_PAYLOAD] = {}, const size_t size_packet = 0); // Prevent decay
         bool Transmit_Packet(bool pop_packet);
         bool Send_CMD_To_Sensor(char *buffer, char cmd, const char (&packet)[MODEM_M64_PAYLOAD] = {}, size_t size = 0); // Prevent decay
         bool Check_CMD(const char *cmd);
         void Append_Packet(char (&buffer)[BUFFER_SIZE], const size_t index, const char (&packet)[MODEM_M64_PAYLOAD], const size_t size_packet); // Prevent decay
-        uint8_t Find_Character(const char *buffer, const char to_find, const size_t size);
+        uint8_t Find_Character(const char (&buffer)[BUFFER_SIZE], const char to_find, const size_t size); // Prevent decay
+        void Copy_Array(const char (&buffer)[BUFFER_SIZE], char (&checksum_data)[BUFFER_SIZE], const size_t size); // Prevent decay
 
         void Manage_Write();
         void Manage_Response();

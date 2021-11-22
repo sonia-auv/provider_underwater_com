@@ -74,11 +74,10 @@ class ProviderUnderwaterComNode
         bool Check_CMD(const char *cmd);
         void Append_Packet(char (&buffer)[BUFFER_SIZE], const size_t index, const char (&packet)[MODEM_M64_PAYLOAD], const size_t size_packet); // Prevent decay
         uint8_t Find_Character(const char (&buffer)[BUFFER_SIZE], const char to_find, const size_t size); // Prevent decay
-        void Copy_Array(const char (&buffer)[BUFFER_SIZE], char (&checksum_data)[BUFFER_SIZE], const size_t size); // Prevent decay
+        void Copy_Array(const char (&buffer)[BUFFER_SIZE], char (&buffer_returned)[BUFFER_SIZE], const size_t size, const size_t start = 0); // Prevent decay
 
         void Manage_Write();
-        void Manage_Response();
-        void Export_To_ROS(std::string buffer);
+        void Export_To_ROS(const char (&buffer)[BUFFER_SIZE], const ssize_t size); // Prevent decay
         void Read_Packet();
 
         void Set_Sensor(const char role, const uint8_t channel = 4);
@@ -94,7 +93,7 @@ class ProviderUnderwaterComNode
         ros::Subscriber underwaterComSubscriber_;
         ros::Publisher underwaterComPublisher_;
         ros::ServiceServer underwaterComService_;
-        std_msgs::String msg_received;
+        sonia_common::IntersubCom msg;
 
         std::thread manage_write_thread;
         std::thread manage_response_thread;
@@ -112,8 +111,10 @@ class ProviderUnderwaterComNode
         std::string response_string = "";
         std::string parse_string = "";
 
-        char writerQueue[BUFFER_SIZE] = {};
-        SharedQueue<int> writerSizeQueue;
+        char writeBuffer[BUFFER_SIZE] = {};
+        uint8_t writeSize = 0;
+        // char responseBuffer[BUFFER_SIZE] = {};
+        // uint8_t responseSize = 0;
         SharedQueue<std::string> responseQueue;
         SharedQueue<std::string> parseQueue;
        

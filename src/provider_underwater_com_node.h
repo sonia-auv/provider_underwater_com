@@ -41,9 +41,9 @@
 #include "sharedQueue.h"
 #include "drivers/serial.h"
 #include "modem_data.h"
-#include <sonia_common/IntersubCom.h>
 #include <sonia_common/Modem_Definitions.h>
-#include <sonia_common/ModemPacket.h>
+#include <sonia_common/IntersubCom.h>
+#include <sonia_common/ModemSendCmd.h>
 
 #define BUFFER_SIZE 256
 #define MODEM_M64_PAYLOAD 8
@@ -62,7 +62,7 @@ class ProviderUnderwaterComNode
     private:
 
         void UnderwaterComCallback(const sonia_common::IntersubCom &msg);
-        bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
+        bool UnderwaterComService(sonia_common::ModemSendCmd::Request &req, sonia_common::ModemSendCmd::Response &res);
 
         uint8_t Calculate_Checksum(const char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
         uint8_t Append_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
@@ -112,12 +112,7 @@ class ProviderUnderwaterComNode
         std::string parse_string = "";
 
         char writeBuffer[BUFFER_SIZE] = {};
-        uint8_t writeSize = 0;
-        // char responseBuffer[BUFFER_SIZE] = {};
-        // uint8_t responseSize = 0;
-        SharedQueue<std::string> responseQueue;
-        SharedQueue<std::string> parseQueue;
-       
+        uint8_t writeSize = 0;       
         uint8_t payload_;
         bool init_error_ = true;
         Modem_M64_t modem_data;

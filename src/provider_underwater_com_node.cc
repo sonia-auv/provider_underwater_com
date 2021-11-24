@@ -77,13 +77,13 @@ namespace provider_underwater_com
         modem_data.header.packetId = 0b0;
         modem_data.header.packetNumber = 0b1;
 
-        modem_data.killSwitchState = msg.kill_state;
-        modem_data.missionSwitchState = msg.mission_State;
+        modem_data.killSwitchState = msg.kill_switch_state;
+        modem_data.missionSwitchState = msg.mission_switch_state;
         modem_data.depth = msg.depth;
         modem_data.missionId = msg.mission_id;
-        modem_data.missionState = msg.mission_state;
-        modem_data.torpedosState = 0x0;
-        modem_data.droppersState = 0x0;
+        modem_data.missionState = (uint8_t) msg.mission_state;
+        modem_data.torpedosState = msg.torpedos_state;
+        modem_data.droppersState = msg.droppers_state;
 
         packet = *((uint64_t *)&modem_data);
 
@@ -95,7 +95,7 @@ namespace provider_underwater_com
         Queue_Packet(CMD_QUEUE_PACKET, packet_array, MODEM_M64_PAYLOAD);
     }
 
-    bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
+    bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemSendCmd::Request &req, sonia_common::ModemSendCmd::Response &res)
     {   
         char buffer[BUFFER_SIZE];
 
@@ -286,9 +286,10 @@ namespace provider_underwater_com
         std::unique_lock<std::mutex> mlock(parse_mutex);
         parse_cond.wait(mlock);
 
-        if(!parseQueue.empty())
+        if(!parse_string.empty())
         {        
             std::string tmp = parse_string;
+            parse_string.erase();
 
             for(uint8_t i = 0; i < tmp.size(); ++i)
             {
@@ -369,10 +370,12 @@ namespace provider_underwater_com
         packet = *((Modem_M64_t *)&data);
 
         msg.depth = packet.depth;
-        msg.kill_state = packet.killSwitchState;
-        msg.mission_state = packet.missionSwitchState;
+        msg.kill_switch_state = packet.killSwitchState;
+        msg.mission_switch_state = packet.missionSwitchState;
         msg.mission_id = packet.missionId;
-        msg.mission_State = packet.missionState;  
+        msg.mission_state = (int8_t) packet.missionState;
+        msg.torpedos_state = packet.torpedosState;
+        msg.droppers_state = packet.droppersState;  
 
         underwaterComPublisher_.publish(msg);
     }
@@ -424,7 +427,6 @@ namespace provider_underwater_com
                     std::unique_lock<std::mutex> mlock(parse_mutex);
                     parse_string = std::string(buffer);
                     parse_cond.notify_one();
-                    parseQueue.push_back(buffer);
                 }
             }
         }

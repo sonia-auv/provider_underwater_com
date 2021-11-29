@@ -356,17 +356,14 @@ namespace provider_underwater_com
     {
         Modem_M64_t packet;
         uint64_t data = 0;
-        char tmp[BUFFER_SIZE];
-        // TODO add a size check before publish and check if message good
+        uint8_t tmp[MODEM_M64_PAYLOAD];
 
-        // uint8_t first = Find_Character(buffer, ',', size);
-        // Copy_Array(buffer, tmp, MODEM_M64_PAYLOAD, first + 1);
-
-        for(uint8_t i = 6; i < MODEM_M64_PAYLOAD + 6; ++i)
+        for(uint8_t i = 0; i < MODEM_M64_PAYLOAD; ++i)
         {
-            if((i-6) != 0) data += tmp[i-6] * ((i-6) * 8);
-            else data += tmp[i-6];
+            tmp[i] = (uint8_t) buffer[i + 6];
         }
+        
+        std::memcpy(&data, tmp, sizeof(data));
         packet = *((Modem_M64_t *)&data);
 
         msg.depth = packet.depth;

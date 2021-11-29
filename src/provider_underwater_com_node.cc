@@ -86,12 +86,8 @@ namespace provider_underwater_com
         modem_data.droppersState = msg.droppers_state;
 
         packet = *((uint64_t *)&modem_data);
-
-        for(uint8_t i = 0; i < MODEM_M64_PAYLOAD; ++i)
-        {
-            packet_array[i] = (char) (packet >> i * MODEM_M64_PAYLOAD);
-        }
-
+        std::memcpy(packet_array, &packet, sizeof(packet_array));
+        
         Queue_Packet(CMD_QUEUE_PACKET, packet_array, MODEM_M64_PAYLOAD);
     }
 

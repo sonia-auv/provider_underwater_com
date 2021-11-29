@@ -359,13 +359,13 @@ namespace provider_underwater_com
         char tmp[BUFFER_SIZE];
         // TODO add a size check before publish and check if message good
 
-        uint8_t first = Find_Character(buffer, ',', size);
-        Copy_Array(buffer, tmp, MODEM_M64_PAYLOAD, first + 1);
+        // uint8_t first = Find_Character(buffer, ',', size);
+        // Copy_Array(buffer, tmp, MODEM_M64_PAYLOAD, first + 1);
 
-        for(uint8_t i = 0; i < MODEM_M64_PAYLOAD; ++i)
+        for(uint8_t i = 6; i < MODEM_M64_PAYLOAD + 6; ++i)
         {
-            if(i != 0) data += tmp[i] * (i * 8);
-            else data += tmp[i];
+            if((i-6) != 0) data += tmp[i-6] * ((i-6) * 8);
+            else data += tmp[i-6];
         }
         packet = *((Modem_M64_t *)&data);
 

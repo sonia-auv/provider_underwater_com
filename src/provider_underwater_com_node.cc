@@ -34,7 +34,7 @@ namespace provider_underwater_com
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort(), O_RDWR | O_NOCTTY)
     {
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
-        underwaterComPublisher_ = nh_->advertise<sonia_common::IntersubCom>("/provider_underwater_com/receive_msgs", 100);
+        underwaterComPublisher_ = nh_->advertise<std_msgs::UInt64>("/provider_underwater_com/receive_msgs", 100);
         
         manage_write_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Write, this));
         read_packet_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
@@ -67,27 +67,26 @@ namespace provider_underwater_com
         ros::shutdown();
     }
 
-    void ProviderUnderwaterComNode::UnderwaterComCallback(const sonia_common::IntersubCom &msg)
+    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt64 &msg)
     {
-        uint64_t packet = 0;
+        // uint64_t packet = 0;
         char packet_array[MODEM_M64_PAYLOAD];
 
-        // Add function for multiple paquet support
-        modem_data.header.endOfPacket = 0b1;
-        modem_data.header.packetId = 0b0;
-        modem_data.header.packetNumber = 0b1;
+        // // Add function for multiple paquet support
+        // modem_data.header.endOfPacket = 0b1;
+        // modem_data.header.packetId = 0b0;
+        // modem_data.header.packetNumber = 0b1;
 
-        modem_data.killSwitchState = msg.kill_switch_state;
-        modem_data.missionSwitchState = msg.mission_switch_state;
-        modem_data.depth = msg.depth;
-        modem_data.missionId = msg.mission_id;
-        modem_data.missionState = (uint8_t) msg.mission_state;
-        modem_data.torpedosState = msg.torpedos_state;
-        modem_data.droppersState = msg.droppers_state;
+        // modem_data.killSwitchState = msg.kill_switch_state;
+        // modem_data.missionSwitchState = msg.mission_switch_state;
+        // modem_data.depth = msg.depth;
+        // modem_data.missionId = msg.mission_id;
+        // modem_data.missionState = (uint8_t) msg.mission_state;
+        // modem_data.torpedosState = msg.torpedos_state;
+        // modem_data.droppersState = msg.droppers_state;
 
-        packet = *((uint64_t *)&modem_data);
-        std::memcpy(packet_array, &packet, sizeof(packet_array));
-        
+        // packet = *((uint64_t *)&modem_data);
+        std::memcpy(packet_array, &(msg.data), sizeof(packet_array));
         Queue_Packet(CMD_QUEUE_PACKET, packet_array, MODEM_M64_PAYLOAD);
     }
 
@@ -350,8 +349,9 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Export_To_ROS(const char (&buffer)[BUFFER_SIZE], const ssize_t size)
     {
-        Modem_M64_t packet;
-        uint64_t data = 0;
+        // Modem_M64_t packet;
+        // uint64_t data = 0;
+        std_msgs::UInt64 msg;
         uint8_t tmp[MODEM_M64_PAYLOAD];
 
         for(uint8_t i = 0; i < MODEM_M64_PAYLOAD; ++i)
@@ -359,16 +359,16 @@ namespace provider_underwater_com
             tmp[i] = (uint8_t) buffer[i + 6];
         }
         
-        std::memcpy(&data, tmp, sizeof(data));
-        packet = *((Modem_M64_t *)&data);
+        std::memcpy(&(msg.data), tmp, sizeof(msg.data));
+        // packet = *((Modem_M64_t *)&data);
 
-        msg.depth = packet.depth;
-        msg.kill_switch_state = packet.killSwitchState;
-        msg.mission_switch_state = packet.missionSwitchState;
-        msg.mission_id = packet.missionId;
-        msg.mission_state = (int8_t) packet.missionState;
-        msg.torpedos_state = packet.torpedosState;
-        msg.droppers_state = packet.droppersState;  
+        // msg.depth = packet.depth;
+        // msg.kill_switch_state = packet.killSwitchState;
+        // msg.mission_switch_state = packet.missionSwitchState;
+        // msg.mission_id = packet.missionId;
+        // msg.mission_state = (int8_t) packet.missionState;
+        // msg.torpedos_state = packet.torpedosState;
+        // msg.droppers_state = packet.droppersState;  
 
         underwaterComPublisher_.publish(msg);
     }

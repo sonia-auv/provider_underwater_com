@@ -26,9 +26,7 @@
 #include "provider_underwater_com_node.h"
 #include <fcntl.h>
 
-#define BUFFER_SIZE 256
-
-namespace provider_underwater_com 
+namespace provider_underwater_com
 {
 
     //Node Construtor
@@ -36,10 +34,9 @@ namespace provider_underwater_com
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort(), O_RDWR | O_NOCTTY)
     {
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
-        underwaterComPublisher_ = nh_->advertise<std_msgs::String>("/provider_underwater_com/receive_msgs", 100);
+        underwaterComPublisher_ = nh_->advertise<std_msgs::UInt64>("/provider_underwater_com/receive_msgs", 100);
         
         manage_write_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Write, this));
-        manage_response_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Manage_Response, this));
         read_packet_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Read_Packet, this));
         
         ros::Duration(1).sleep();
@@ -54,7 +51,6 @@ namespace provider_underwater_com
     ProviderUnderwaterComNode::~ProviderUnderwaterComNode()
     {
         manage_write_thread.~thread();
-        manage_response_thread.~thread();
         read_packet_thread.~thread();
     }
 
@@ -71,13 +67,30 @@ namespace provider_underwater_com
         ros::shutdown();
     }
 
-    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::String &msg)
+    void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt64 &msg)
     {
-        std::string packet = "," + std::to_string(payload_) + "," + msg.data; // TODO add a size check before transmit
-        Queue_Packet(std::string(1, CMD_QUEUE_PACKET), packet);
+        // uint64_t packet = 0;
+        char packet_array[MODEM_M64_PAYLOAD];
+
+        // // Add function for multiple paquet support
+        // modem_data.header.endOfPacket = 0b1;
+        // modem_data.header.packetId = 0b0;
+        // modem_data.header.packetNumber = 0b1;
+
+        // modem_data.killSwitchState = msg.kill_switch_state;
+        // modem_data.missionSwitchState = msg.mission_switch_state;
+        // modem_data.depth = msg.depth;
+        // modem_data.missionId = msg.mission_id;
+        // modem_data.missionState = (uint8_t) msg.mission_state;
+        // modem_data.torpedosState = msg.torpedos_state;
+        // modem_data.droppersState = msg.droppers_state;
+
+        // packet = *((uint64_t *)&modem_data);
+        std::memcpy(packet_array, &(msg.data), sizeof(packet_array));
+        Queue_Packet(CMD_QUEUE_PACKET, packet_array, MODEM_M64_PAYLOAD);
     }
 
-    bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res)
+    bool ProviderUnderwaterComNode::UnderwaterComService(sonia_common::ModemSendCmd::Request &req, sonia_common::ModemSendCmd::Response &res)
     {   
         char buffer[BUFFER_SIZE];
 
@@ -155,37 +168,44 @@ namespace provider_underwater_com
         return true;
     }
 
-    uint8_t ProviderUnderwaterComNode::CalculateChecksum(const std::string &sentence, uint8_t length)
+    uint8_t ProviderUnderwaterComNode::Calculate_Checksum(const char (&buffer)[BUFFER_SIZE], const size_t size)
     {
         uint8_t check = 0;
 
-        for(uint8_t i = 0; i < length; ++i)
+        for(uint8_t i = 0; i < size; ++i)
         {
-            check = crc_table[(uint8_t)sentence.at(i) ^ check];
+            check = crc_table[(uint8_t)buffer[i] ^ check];
         }
 
         return check;
     }
 
-    void ProviderUnderwaterComNode::AppendChecksum(std::string &sentence)
+    uint8_t ProviderUnderwaterComNode::Append_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size)
     {
-        std::stringstream ss;
-        char buffer[2];
+        char checksum_buffer[2];
 
-        uint8_t checksum = CalculateChecksum(sentence, sentence.size());
-        sprintf(buffer, "%02x", checksum);
+        uint8_t checksum = Calculate_Checksum(buffer, size);
+        sprintf(checksum_buffer, "%02x", checksum);
 
-        ss << sentence << std::string(1, CHECKSUM) << buffer << std::string(1, EOP);
-        sentence = ss.str();
+        buffer[size] = CHECKSUM;
+        buffer[size + 1] = checksum_buffer[0];
+        buffer[size + 2] = checksum_buffer[1];
+        buffer[size + 3] = EOP;
+
+        return size + 4;
     }
 
-    bool ProviderUnderwaterComNode::ConfirmChecksum(const std::string &sentence)
-    {      
+    bool ProviderUnderwaterComNode::Confirm_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size)
+    {    
+        char checksumData[BUFFER_SIZE];
+
         try
         {
-            std::string checksumData = sentence.substr(0, sentence.find("*", 0));
-            uint8_t calculatedChecksum = CalculateChecksum(checksumData, checksumData.size());
-            uint8_t originalChecksum = std::stoi(sentence.substr(sentence.find("*", 0)+1, 2), nullptr, 16);
+            uint8_t position = Find_Character(buffer, CHECKSUM, size);
+            Copy_Array(buffer, checksumData, position);
+            uint8_t calculatedChecksum = Calculate_Checksum(checksumData, position);
+            std::string checksumSentence {buffer[position + 1], buffer[position + 2]};
+            uint8_t originalChecksum = std::stoi(checksumSentence, nullptr, 16);
             return originalChecksum == calculatedChecksum;
         }
         catch(...)
@@ -195,41 +215,57 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Queue_Packet(const std::string &cmd, const std::string &packet)
+    void ProviderUnderwaterComNode::Queue_Packet(const char cmd, const char (&packet)[MODEM_M64_PAYLOAD], const size_t size_packet)
     {
-        std::stringstream ss;
-        std::string sentence;
+        char send_msg[BUFFER_SIZE];
+        uint8_t index = 0;
 
-        if(Check_CMD(cmd.data()))
+        if(Check_CMD(&cmd))
         {
-            ss << SOP << DIR_CMD << cmd;
+            send_msg[0] = SOP;
+            send_msg[1] = DIR_CMD;
+            send_msg[2] = cmd;
+            index = 3;
 
-            if(cmd == std::string(1, CMD_QUEUE_PACKET) || cmd == std::string(1, CMD_SET_SETTINGS))
+            if(cmd == CMD_QUEUE_PACKET)
             {
-                ss << packet;
+                send_msg[3] = ',';
+                send_msg[4] = std::to_string(payload_).at(0);
+                send_msg[5] = ',';
+                index = 6;
+                Append_Packet(send_msg, index, packet, size_packet);
+            }
+            else if(cmd == CMD_SET_SETTINGS)
+            {
+                send_msg[3] = ',';
+                index = 4;
+                Append_Packet(send_msg, index, packet, size_packet);
             }
 
-            sentence = ss.str();
-            AppendChecksum(sentence);
-            writerQueue.push_back(sentence);
-            // std::unique_lock<std::mutex> mlock(write_mutex);
-            // write_string = sentence;
-            // write_cond.notify_one();
+            index = Append_Checksum(send_msg, index + size_packet);      
+            std::unique_lock<std::mutex> mlock(write_mutex); 
+            std::copy(std::begin(send_msg), std::end(send_msg), std::begin(writeBuffer));
+            writeSize = index;
+            write_cond.notify_one();
 
             ROS_DEBUG_STREAM("Packet sent to Modem");
         }
         else
         {
             ROS_WARN_STREAM("CMD unknow. Can't queue packet");
-        }
+        }       
     }
 
     bool ProviderUnderwaterComNode::Transmit_Packet(bool pop_packet)
     {
-        if(!writerQueue.empty())
+        if(writeBuffer[0] != 0)
         {
-            serialConnection_.transmit(writerQueue.front());
-            if(pop_packet) writerQueue.pop_front();
+            serialConnection_.transmit(writeBuffer, writeSize);
+            if(pop_packet)
+            {
+                writeBuffer[0] = 0;
+                writeSize = 0;
+            }
             return true;
         }
         else
@@ -239,15 +275,16 @@ namespace provider_underwater_com
         }
     }
 
-    bool ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet)
+    bool ProviderUnderwaterComNode::Send_CMD_To_Sensor(char *buffer, char cmd, const char (&packet)[MODEM_M64_PAYLOAD], size_t size)
     {
-        Queue_Packet(std::string(1, cmd), packet);        
+        Queue_Packet(cmd, packet, size);
         std::unique_lock<std::mutex> mlock(parse_mutex);
         parse_cond.wait(mlock);
 
-        if(!parseQueue.empty())
+        if(!parse_string.empty())
         {        
             std::string tmp = parse_string;
+            parse_string.erase();
 
             for(uint8_t i = 0; i < tmp.size(); ++i)
             {
@@ -270,6 +307,33 @@ namespace provider_underwater_com
         return false;
     }
 
+    void ProviderUnderwaterComNode::Append_Packet(char (&buffer)[BUFFER_SIZE], const size_t index, const char (&packet)[MODEM_M64_PAYLOAD], const size_t size_packet)
+    {
+        for(uint8_t i = 0; i < size_packet; ++i)
+        {
+            buffer[index+i] = packet[i];
+        }
+    }
+
+    uint8_t ProviderUnderwaterComNode::Find_Character(const char (&buffer)[BUFFER_SIZE], const char to_find, const size_t size)
+    {
+        uint8_t i;
+
+        for(i = 0; i < size; ++i)
+        {
+            if(buffer[i] == to_find) break;
+        }
+        return i;
+    }
+
+    void ProviderUnderwaterComNode::Copy_Array(const char (&buffer)[BUFFER_SIZE], char (&buffer_returned)[BUFFER_SIZE], const size_t size, const size_t start)
+    {
+        for(uint8_t i = 0; i < size; ++i)
+        {
+            buffer_returned[i+start] = buffer[i];
+        }
+    }
+
     void ProviderUnderwaterComNode::Manage_Write()
     { 
         ros::Rate r(1); // 1 Hz
@@ -277,42 +341,36 @@ namespace provider_underwater_com
 
         while(!ros::isShuttingDown())
         {
-            // std::unique_lock<std::mutex> mlock(write_mutex);
-            // write_cond.wait(mlock);
-            if(!writerQueue.empty()) Transmit_Packet(true);
-            r.sleep();
+            std::unique_lock<std::mutex> mlock(write_mutex);
+            write_cond.wait(mlock);
+            Transmit_Packet(true);
         }
     }
 
-    void ProviderUnderwaterComNode::Manage_Response()
+    void ProviderUnderwaterComNode::Export_To_ROS(const char (&buffer)[BUFFER_SIZE], const ssize_t size)
     {
-        ros::Rate r(1); // 1 Hz
-        ROS_INFO_STREAM("Manage response thread started");
+        // Modem_M64_t packet;
+        // uint64_t data = 0;
+        std_msgs::UInt64 msg;
+        uint8_t tmp[MODEM_M64_PAYLOAD];
 
-        while (!ros::isShuttingDown())
+        for(uint8_t i = 0; i < MODEM_M64_PAYLOAD; ++i)
         {
-            // std::unique_lock<std::mutex> mlock(response_mutex);
-            // response_cond.wait(mlock);
-            if(!responseQueue.empty()) Export_To_ROS(responseQueue.get_n_pop_front());
-            //ROS_INFO_STREAM("Read a packet");
-            r.sleep();
+            tmp[i] = (uint8_t) buffer[i + 6];
         }
-    }
+        
+        std::memcpy(&(msg.data), tmp, sizeof(msg.data));
+        // packet = *((Modem_M64_t *)&data);
 
-    void ProviderUnderwaterComNode::Export_To_ROS(std::string buffer)
-    {
-        std::string size;
-        std::string msg;
+        // msg.depth = packet.depth;
+        // msg.kill_switch_state = packet.killSwitchState;
+        // msg.mission_switch_state = packet.missionSwitchState;
+        // msg.mission_id = packet.missionId;
+        // msg.mission_state = (int8_t) packet.missionState;
+        // msg.torpedos_state = packet.torpedosState;
+        // msg.droppers_state = packet.droppersState;  
 
-        msg_received.data.clear();
-        std::stringstream ss(buffer);
-        std::getline(ss, size, ','); // TODO add a size check before publish and check if message good
-        std::getline(ss, size, ',');
-        std::getline(ss, msg, '*');
-
-        msg_received.data = msg;
-
-        underwaterComPublisher_.publish(msg_received);
+        underwaterComPublisher_.publish(msg);
     }
 
     void ProviderUnderwaterComNode::Read_Packet()
@@ -341,14 +399,11 @@ namespace provider_underwater_com
                 continue;
             }
 
-            if(ConfirmChecksum(buffer))
-            {                
+            if(Confirm_Checksum(buffer, i-1))
+            {
                 if(buffer[2] == RESP_GOT_PACKET)
                 {
-                    // std::unique_lock<std::mutex> mlock(response_mutex);
-                    // response_string = std::string(buffer);
-                    // response_cond.notify_one();
-                    responseQueue.push_back(buffer);
+                    Export_To_ROS(buffer, i-1);
                 }
                 else if(buffer[2] == CMD_QUEUE_PACKET && buffer[4] == ACK)
                 {
@@ -365,7 +420,6 @@ namespace provider_underwater_com
                     std::unique_lock<std::mutex> mlock(parse_mutex);
                     parse_string = std::string(buffer);
                     parse_cond.notify_one();
-                    parseQueue.push_back(buffer);
                 }
             }
         }
@@ -440,17 +494,18 @@ namespace provider_underwater_com
     {
         std::string acknowledge;
         char buffer[BUFFER_SIZE];
+        char packet[MODEM_M64_PAYLOAD] = {role, ','}; 
 
         sprintf(buffer, "%d", channel);
-        std::string packet = "," + std::string(1, role) + "," + buffer;
+        packet[2] = buffer[0];
 
-        if(Send_CMD_To_Sensor(buffer, CMD_SET_SETTINGS, packet)) return true;
+        if(Send_CMD_To_Sensor(buffer, CMD_SET_SETTINGS, packet, 3)) return true;
 
         std::stringstream ss(buffer);
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
+        if(acknowledge != std::string(1, ACK))
         {
             ROS_ERROR_STREAM("Could not set the configuration.");
             return true;
@@ -470,7 +525,7 @@ namespace provider_underwater_com
         std::getline(ss, acknowledge, ',');
         std::getline(ss, acknowledge, '*');
 
-        if(acknowledge == std::string(1, NAK))
+        if(acknowledge != std::string(1, ACK))
         {
             ROS_ERROR_STREAM("Couldn't flush the queue.");
             return true;

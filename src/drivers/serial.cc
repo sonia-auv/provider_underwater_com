@@ -101,3 +101,9 @@ ssize_t Serial::transmit(const std::string data)
     ROS_DEBUG("provider_underwater_com transmit data");
     return write(fd, data.c_str(), data.size());
 }
+
+ssize_t Serial::transmit(const void *data, const ssize_t size)
+{
+    ROS_DEBUG("serial transmit data");
+    return write(fd, data, size);
+}

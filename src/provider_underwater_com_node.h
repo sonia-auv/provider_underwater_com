@@ -27,21 +27,20 @@
 #define PROVIDER_UNDERWATER_COM_NODE
 
 #include <ros/ros.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string>
-#include <std_msgs/String.h>
-#include <fstream>
-#include <sstream>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <std_msgs/UInt64.h>
 
 #include "Configuration.h"
-#include "sharedQueue.h"
 #include "drivers/serial.h"
-#include "Modem_Definitions.h"
-//#include <sonia_common/Modem_Definitions.h>
-#include <sonia_common/ModemPacket.h>
+#include <sonia_common/Modem_Definitions.h>
+#include <sonia_common/ModemSendCmd.h>
+
+#define BUFFER_SIZE 256
+#define MODEM_M64_PAYLOAD 8
 
 namespace provider_underwater_com {
 
@@ -56,21 +55,23 @@ class ProviderUnderwaterComNode
     
     private:
 
-        void UnderwaterComCallback(const std_msgs::String &msg);
-        bool UnderwaterComService(sonia_common::ModemPacket::Request &req, sonia_common::ModemPacket::Response &res);
+        void UnderwaterComCallback(const std_msgs::UInt64 &msg);
+        bool UnderwaterComService(sonia_common::ModemSendCmd::Request &req, sonia_common::ModemSendCmd::Response &res);
 
-        uint8_t CalculateChecksum(const std::string &sentence, uint8_t length);
-        void AppendChecksum(std::string &sentence);
-        bool ConfirmChecksum(const std::string &sentence);
+        uint8_t Calculate_Checksum(const char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
+        uint8_t Append_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
+        bool Confirm_Checksum(char (&buffer)[BUFFER_SIZE], const size_t size); // Prevent decay
 
-        void Queue_Packet(const std::string &cmd, const std::string &packet = "");
+        void Queue_Packet(const char cmd, const char (&packet)[MODEM_M64_PAYLOAD] = {}, const size_t size_packet = 0); // Prevent decay
         bool Transmit_Packet(bool pop_packet);
-        bool Send_CMD_To_Sensor(char *buffer, char cmd, const std::string &packet = "");
+        bool Send_CMD_To_Sensor(char *buffer, char cmd, const char (&packet)[MODEM_M64_PAYLOAD] = {}, size_t size = 0); // Prevent decay
         bool Check_CMD(const char *cmd);
+        void Append_Packet(char (&buffer)[BUFFER_SIZE], const size_t index, const char (&packet)[MODEM_M64_PAYLOAD], const size_t size_packet); // Prevent decay
+        uint8_t Find_Character(const char (&buffer)[BUFFER_SIZE], const char to_find, const size_t size); // Prevent decay
+        void Copy_Array(const char (&buffer)[BUFFER_SIZE], char (&buffer_returned)[BUFFER_SIZE], const size_t size, const size_t start = 0); // Prevent decay
 
         void Manage_Write();
-        void Manage_Response();
-        void Export_To_ROS(std::string buffer);
+        void Export_To_ROS(const char (&buffer)[BUFFER_SIZE], const ssize_t size); // Prevent decay
         void Read_Packet();
 
         void Set_Sensor(const char role, const uint8_t channel = 4);
@@ -86,7 +87,6 @@ class ProviderUnderwaterComNode
         ros::Subscriber underwaterComSubscriber_;
         ros::Publisher underwaterComPublisher_;
         ros::ServiceServer underwaterComService_;
-        std_msgs::String msg_received;
 
         std::thread manage_write_thread;
         std::thread manage_response_thread;
@@ -104,12 +104,11 @@ class ProviderUnderwaterComNode
         std::string response_string = "";
         std::string parse_string = "";
 
-        SharedQueue<std::string> writerQueue;
-        SharedQueue<std::string> responseQueue;
-        SharedQueue<std::string> parseQueue;
-       
+        char writeBuffer[BUFFER_SIZE] = {};
+        uint8_t writeSize = 0;       
         uint8_t payload_;
         bool init_error_ = true;
+        // Modem_M64_t modem_data;
 };
 }
 

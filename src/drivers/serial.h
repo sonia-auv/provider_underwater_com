@@ -41,6 +41,7 @@ public:
     void readOnce(char* data, int offset);
     void flush();
     ssize_t transmit(const std::string data);
+    ssize_t transmit(const void *data, const ssize_t size);
 
 private:
 

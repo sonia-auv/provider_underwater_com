@@ -1,9 +1,9 @@
-# <ENTER_YOUR_NODE_NAME>
+# Provider Underwater COM
 
-![Docker Image CI - Master Branch](https://github.com/sonia-auv/<ENTER_YOUR_NODE_NAME>/workflows/Docker%20Image%20CI%20-%20Master%20Branch/badge.svg)
-![Docker Image CI - Develop Branch](https://github.com/sonia-auv/<ENTER_YOUR_NODE_NAME>/workflows/Docker%20Image%20CI%20-%20Develop%20Branch/badge.svg?branch=develop)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/sonia-auv/<ENTER_YOUR_NODE_NAME>)
-![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/sonia-auv/<ENTER_YOUR_NODE_NAME>.svg)
+![Docker Image CI - Master Branch](https://github.com/sonia-auv/provider_underwater_com/workflows/Docker%20Image%20CI%20-%20Master%20Branch/badge.svg)
+![Docker Image CI - Develop Branch](https://github.com/sonia-auv/provider_underwater_com/workflows/Docker%20Image%20CI%20-%20Develop%20Branch/badge.svg?branch=develop)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/sonia-auv/provider_underwater_com)
+![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/sonia-auv/provider_underwater_com.svg)
 
 
 *Please read the instructions and fill in the blanks*
@@ -15,7 +15,7 @@ One Paragraph of project description goes here
 
 Clone current project by using following command :
 ```bash
-    git clone git@github.com:sonia-auv/<ENTER_YOUR_NODE_NAME>.git
+    git clone git@github.com:sonia-auv/provider_underwater_com.git
 ```
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.

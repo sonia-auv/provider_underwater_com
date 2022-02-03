@@ -427,23 +427,47 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Set_Sensor(const char role, const uint8_t channel)
     {
-        uint8_t i = 0;
-        
-        while(i < 3 && init_error_ == true)
+        try
         {
-            init_error_ = false;
-            init_error_ = Verify_Version() | Get_Payload_Load() | Set_Configuration(role, channel) | Flush_Queue();  
-            ++i;
-        }
 
-        if(init_error_)
-        {
-            ROS_ERROR_STREAM("Problem with the init. Node shutting down.");
-        }
-        else
-        {
+            std::packaged_task<int()> task(wait_30secs);
+            std::future<int> task_future = task.get_future();
+            std::thread thr(std::move(task));
+
+            uint8_t i = 0;
+            bool error = true;
+            
+            while(i < 3 && error == true)
+            {
+                error = false;
+                error = Verify_Version() | Get_Payload_Load() | Set_Configuration(role, channel) | Flush_Queue();  
+                ++i;
+            }
+            
+            init_error_ = error;
+            
+            
             ROS_INFO_STREAM("Initialisation completed");
         }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+            ROS_ERROR_STREAM("Problem with the init. Node shutting down.");
+        }
+    }
+
+    bool ProviderUnderwaterComNode::Init_Function(char role, uint8_t channel)
+    {
+        uint8_t i = 0;
+        bool error = true;
+        
+        while(i < 3 && error == true)
+        {
+            error = false;
+            error = Verify_Version() | Get_Payload_Load() | Set_Configuration(role, channel) | Flush_Queue();  
+            ++i;
+        }
+        return error;
     }
 
     bool ProviderUnderwaterComNode::Verify_Version()
@@ -533,4 +557,11 @@ namespace provider_underwater_com
         ROS_INFO_STREAM("Queue flushed");
         return false;
     }
+}
+
+int wait_30secs()
+{
+    std::this_thread::sleep_for(std::chrono::seconds(30));
+    ROS_ERROR_STREAM("Initialisation failed. Shutting down node");
+    throw 1;
 }

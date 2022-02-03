@@ -32,6 +32,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <chrono>
+#include <future>
 #include <std_msgs/UInt64.h>
 
 #include "Configuration.h"
@@ -75,6 +77,7 @@ class ProviderUnderwaterComNode
         void Read_Packet();
 
         void Set_Sensor(const char role, const uint8_t channel = 4);
+        bool Init_Function(char role, uint8_t channel);
         bool Verify_Version();
         bool Get_Payload_Load();
         bool Set_Configuration(const char role, const uint8_t channel);
@@ -111,5 +114,7 @@ class ProviderUnderwaterComNode
         // Modem_M64_t modem_data;
 };
 }
+
+void wait_30secs();
 
 #endif //PROVIDER_UNDERWATER_COM_NODE

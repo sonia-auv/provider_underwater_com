@@ -28,9 +28,9 @@
 #include <ros/ros.h>
 #include <sys/ioctl.h>
 
-Serial::Serial(std::string port, int flags)
+Serial::Serial(std::string port)
 {
-    fd = open(port.c_str(), flags);
+    fd = open(port.c_str(), O_RDWR | O_NOCTTY);
     if(fd == -1)
     {
         ROS_ERROR("unable to connect to %s", port.c_str());

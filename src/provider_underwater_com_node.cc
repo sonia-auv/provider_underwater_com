@@ -31,7 +31,7 @@ namespace provider_underwater_com
 
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
-        : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort(), O_RDWR | O_NOCTTY)
+        : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
     {
         underwaterComSubscriber_ = nh_->subscribe("/proc_underwater_com/send_msgs", 100, &ProviderUnderwaterComNode::UnderwaterComCallback, this);
         underwaterComPublisher_ = nh_->advertise<std_msgs::UInt64>("/provider_underwater_com/receive_msgs", 100);
@@ -42,7 +42,7 @@ namespace provider_underwater_com
         ros::Duration(1).sleep();
 
         ROS_INFO_STREAM("Setting the sensor");
-        Set_Sensor(configuration_.getRole().at(0), std::stoi(configuration_.getChannel()));
+        Set_Sensor();
 
         underwaterComService_ = nh_->advertiseService("/provider_underwater_com/request", &ProviderUnderwaterComNode::UnderwaterComService, this);
     }
@@ -50,8 +50,8 @@ namespace provider_underwater_com
     //Node Destructor
     ProviderUnderwaterComNode::~ProviderUnderwaterComNode()
     {
-        manage_write_thread.~thread();
-        read_packet_thread.~thread();
+        stop_read_thread = true;
+        stop_write_thread = true;
     }
 
     //Node Spin
@@ -64,7 +64,6 @@ namespace provider_underwater_com
             ros::spinOnce();
             r.sleep();
         }
-        ros::shutdown();
     }
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt64 &msg)
@@ -339,7 +338,7 @@ namespace provider_underwater_com
         ros::Rate r(1); // 1 Hz
         ROS_INFO_STREAM("Manage write thread started");
 
-        while(!ros::isShuttingDown())
+        while(!stop_write_thread)
         {
             std::unique_lock<std::mutex> mlock(write_mutex);
             write_cond.wait(mlock);
@@ -349,8 +348,6 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::Export_To_ROS(const char (&buffer)[BUFFER_SIZE], const ssize_t size)
     {
-        // Modem_M64_t packet;
-        // uint64_t data = 0;
         std_msgs::UInt64 msg;
         uint8_t tmp[MODEM_M64_PAYLOAD];
 
@@ -360,16 +357,6 @@ namespace provider_underwater_com
         }
         
         std::memcpy(&(msg.data), tmp, sizeof(msg.data));
-        // packet = *((Modem_M64_t *)&data);
-
-        // msg.depth = packet.depth;
-        // msg.kill_switch_state = packet.killSwitchState;
-        // msg.mission_switch_state = packet.missionSwitchState;
-        // msg.mission_id = packet.missionId;
-        // msg.mission_state = (int8_t) packet.missionState;
-        // msg.torpedos_state = packet.torpedosState;
-        // msg.droppers_state = packet.droppersState;  
-
         underwaterComPublisher_.publish(msg);
     }
 
@@ -380,11 +367,12 @@ namespace provider_underwater_com
 
         ROS_INFO_STREAM("Read Packet thread started");
 
-        while(!ros::isShuttingDown())
+        while(!stop_read_thread)
         {          
             do
             {
                 serialConnection_.readOnce(buffer, 0);
+                if(stop_read_thread) return;
             } while(buffer[0] != SOP);
 
             for(i = 1; buffer[i-1] != EOP && i < BUFFER_SIZE; ++i)
@@ -425,49 +413,43 @@ namespace provider_underwater_com
         }
     }
 
-    void ProviderUnderwaterComNode::Set_Sensor(const char role, const uint8_t channel)
+    void ProviderUnderwaterComNode::Set_Sensor()
     {
-        try
+        std::chrono::system_clock::time_point thrity_seconds_passed
+            = std::chrono::system_clock::now() + std::chrono::seconds(30);
+
+        std::future <bool>init_complete_future = init_complete.get_future();
+
+        init_function_thread = std::thread(std::bind(&ProviderUnderwaterComNode::Init_Function, this));
+        init_function_thread.detach();
+        
+        if(std::future_status::ready == init_complete_future.wait_until(thrity_seconds_passed))
         {
-
-            std::packaged_task<int()> task(wait_30secs);
-            std::future<int> task_future = task.get_future();
-            std::thread thr(std::move(task));
-
-            uint8_t i = 0;
-            bool error = true;
-            
-            while(i < 3 && error == true)
-            {
-                error = false;
-                error = Verify_Version() | Get_Payload_Load() | Set_Configuration(role, channel) | Flush_Queue();  
-                ++i;
-            }
-            
-            init_error_ = error;
-            thr.detach();
-            
+            init_error_ = false;
             ROS_INFO_STREAM("Initialisation completed");
         }
-        catch(const std::exception& e)
+        else
         {
-            std::cerr << e.what() << '\n';
+            init_error_ = true;
             ROS_ERROR_STREAM("Problem with the init. Node shutting down.");
         }
     }
 
-    bool ProviderUnderwaterComNode::Init_Function(char role, uint8_t channel)
+    void ProviderUnderwaterComNode::Init_Function()
     {
         uint8_t i = 0;
         bool error = true;
-        
+        char role = configuration_.getRole().at(0);
+        uint8_t channel = std::stoi(configuration_.getChannel());
+
         while(i < 3 && error == true)
         {
             error = false;
             error = Verify_Version() | Get_Payload_Load() | Set_Configuration(role, channel) | Flush_Queue();  
             ++i;
         }
-        return error;
+        init_complete.set_value_at_thread_exit(error);
+        std::move(init_complete);
     }
 
     bool ProviderUnderwaterComNode::Verify_Version()
@@ -557,11 +539,4 @@ namespace provider_underwater_com
         ROS_INFO_STREAM("Queue flushed");
         return false;
     }
-}
-
-int wait_30secs()
-{
-    std::this_thread::sleep_for(std::chrono::seconds(30));
-    ROS_ERROR_STREAM("Initialisation failed. Shutting down node");
-    throw 1;
 }

@@ -115,6 +115,6 @@ class ProviderUnderwaterComNode
 };
 }
 
-void wait_30secs();
+int wait_30secs();
 
 #endif //PROVIDER_UNDERWATER_COM_NODE

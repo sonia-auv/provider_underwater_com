@@ -445,7 +445,7 @@ namespace provider_underwater_com
             }
             
             init_error_ = error;
-            
+            thr.detach();
             
             ROS_INFO_STREAM("Initialisation completed");
         }

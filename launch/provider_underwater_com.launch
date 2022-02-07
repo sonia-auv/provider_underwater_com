@@ -1,5 +1,7 @@
 <launch>
 
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find provider_underwater_com)/config/rosconsole.config"/>
+
     <!-- load the provider -->
     <node name="provider_underwater_com" pkg="provider_underwater_com" type="provider_underwater_com_node" output="screen"/>
 

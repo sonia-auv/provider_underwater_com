@@ -24,11 +24,9 @@
  */
 
 #include "provider_underwater_com_node.h"
-#include <fcntl.h>
 
 namespace provider_underwater_com
 {
-
     //Node Construtor
     ProviderUnderwaterComNode::ProviderUnderwaterComNode(const ros::NodeHandlePtr &_nh)
         : nh_(_nh), configuration_(_nh), serialConnection_(configuration_.getTtyPort())
@@ -68,23 +66,7 @@ namespace provider_underwater_com
 
     void ProviderUnderwaterComNode::UnderwaterComCallback(const std_msgs::UInt64 &msg)
     {
-        // uint64_t packet = 0;
         char packet_array[MODEM_M64_PAYLOAD];
-
-        // // Add function for multiple paquet support
-        // modem_data.header.endOfPacket = 0b1;
-        // modem_data.header.packetId = 0b0;
-        // modem_data.header.packetNumber = 0b1;
-
-        // modem_data.killSwitchState = msg.kill_switch_state;
-        // modem_data.missionSwitchState = msg.mission_switch_state;
-        // modem_data.depth = msg.depth;
-        // modem_data.missionId = msg.mission_id;
-        // modem_data.missionState = (uint8_t) msg.mission_state;
-        // modem_data.torpedosState = msg.torpedos_state;
-        // modem_data.droppersState = msg.droppers_state;
-
-        // packet = *((uint64_t *)&modem_data);
         std::memcpy(packet_array, &(msg.data), sizeof(packet_array));
         Queue_Packet(CMD_QUEUE_PACKET, packet_array, MODEM_M64_PAYLOAD);
     }
@@ -175,7 +157,6 @@ namespace provider_underwater_com
         {
             check = crc_table[(uint8_t)buffer[i] ^ check];
         }
-
         return check;
     }
 
@@ -355,7 +336,6 @@ namespace provider_underwater_com
         {
             tmp[i] = (uint8_t) buffer[i + 6];
         }
-        
         std::memcpy(&(msg.data), tmp, sizeof(msg.data));
         underwaterComPublisher_.publish(msg);
     }

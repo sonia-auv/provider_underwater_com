@@ -32,6 +32,5 @@ int main(int argc, char **argv)
     ros::NodeHandlePtr nh(new ros::NodeHandle("~"));
     provider_underwater_com::ProviderUnderwaterComNode provider_underwater_com_node{nh};
     provider_underwater_com_node.Spin();
-
     return 0;
 }

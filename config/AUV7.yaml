@@ -1,0 +1,7 @@
+#********** Driver Parameters ************
+
+/provider_underwater_com/connection/tty_port: "/dev/MODEM"
+
+/provider_underwater_com/settings/role : "b"
+
+/provider_underwater_com/settings/channel : "6"

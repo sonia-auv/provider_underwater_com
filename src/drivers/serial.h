@@ -34,7 +34,7 @@
 
 class Serial{
 public:
-    Serial(std::string port, int flags);
+    Serial(std::string port);
     ~Serial();
 
     std::string receive(size_t count);

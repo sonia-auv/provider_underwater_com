@@ -32,6 +32,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <chrono>
+#include <future>
 #include <std_msgs/UInt64.h>
 
 #include "Configuration.h"
@@ -74,7 +76,8 @@ class ProviderUnderwaterComNode
         void Export_To_ROS(const char (&buffer)[BUFFER_SIZE], const ssize_t size); // Prevent decay
         void Read_Packet();
 
-        void Set_Sensor(const char role, const uint8_t channel = 4);
+        void Set_Sensor();
+        void Init_Function();
         bool Verify_Version();
         bool Get_Payload_Load();
         bool Set_Configuration(const char role, const uint8_t channel);
@@ -89,8 +92,9 @@ class ProviderUnderwaterComNode
         ros::ServiceServer underwaterComService_;
 
         std::thread manage_write_thread;
-        std::thread manage_response_thread;
         std::thread read_packet_thread;
+        std::thread init_function_thread;
+        std::promise <bool>init_complete;
 
         std::mutex write_mutex;
         std::mutex response_mutex;
@@ -104,11 +108,14 @@ class ProviderUnderwaterComNode
         std::string response_string = "";
         std::string parse_string = "";
 
+        std::atomic_bool stop_write_thread = {false};
+        std::atomic_bool stop_read_thread = {false};
+
+
         char writeBuffer[BUFFER_SIZE] = {};
         uint8_t writeSize = 0;       
         uint8_t payload_;
         bool init_error_ = true;
-        // Modem_M64_t modem_data;
 };
 }
 

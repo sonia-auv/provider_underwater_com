@@ -58,9 +58,7 @@ namespace provider_underwater_com
 
         template <typename TType>
         void FindParameter(const std::string &paramName, TType &attribute);
-
-
-        };
+    };
 }
 
 #endif //INTERFACE_CONFIGURATION_H
